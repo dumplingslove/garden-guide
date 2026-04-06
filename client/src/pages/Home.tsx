@@ -1,8 +1,9 @@
 /*
- * 家庭果园与菜园施肥与植保指南 — 主页
+ * 家庭果园与菜园施肥与植保指南 — 主页 v2
  * 设计风格：田园手帐 (Illustrated Naturalism)
  * 色彩：亚麻白底 + 苔藓绿主色 + 泥土棕辅色 + 季节强调色
  * 字体：Playfair Display (标题) + Source Sans 3 (正文)
+ * 更新：植物当前状态、育苗指南、浇水指南、Bonide产品替换
  */
 
 import { useState, useEffect, useRef } from "react";
@@ -13,44 +14,69 @@ import {
   Shield,
   Calendar,
   ChevronDown,
-  ChevronRight,
   AlertTriangle,
   Bug,
   Flower2,
   TreePine,
-  Apple,
-  Grape,
   Cherry,
   Sprout,
-  Info,
   Menu,
   X,
+  Zap,
+  CloudRain,
+  Thermometer,
 } from "lucide-react";
-import { products, crops, calendar, safetyRules } from "@/lib/gardenData";
-import type { CalendarMonth, CalendarTask, Product, Crop } from "@/lib/gardenData";
+import {
+  products,
+  crops,
+  calendar,
+  safetyRules,
+  plantStatus,
+  seedlingGuides,
+  wateringGuides,
+} from "@/lib/gardenData";
+import type {
+  CalendarMonth,
+  CalendarTask,
+  Product,
+  Crop,
+  PlantStatus,
+  SeedlingGuide,
+  WateringGuide,
+} from "@/lib/gardenData";
 
-const HERO_IMG = "https://d2xsxph8kpxj0f.cloudfront.net/310519663328359702/EtuGgEXh3NhqYYxcDZkFms/hero-banner-TCVdQnKKiDmXq8BEDjegDN.webp";
-const SPRING_BG = "https://d2xsxph8kpxj0f.cloudfront.net/310519663328359702/EtuGgEXh3NhqYYxcDZkFms/spring-bg-ZzCVv4KC9XBry9TRgocNEa.webp";
-const SUMMER_BG = "https://d2xsxph8kpxj0f.cloudfront.net/310519663328359702/EtuGgEXh3NhqYYxcDZkFms/summer-bg-Jyvn7US9eUDmtJLgpYQXKb.webp";
-const AUTUMN_BG = "https://d2xsxph8kpxj0f.cloudfront.net/310519663328359702/EtuGgEXh3NhqYYxcDZkFms/autumn-bg-Cxge6LcgjZiB6TuZTJqLjj.webp";
+const HERO_IMG =
+  "https://d2xsxph8kpxj0f.cloudfront.net/310519663328359702/EtuGgEXh3NhqYYxcDZkFms/hero-banner-TCVdQnKKiDmXq8BEDjegDN.webp";
 
-const SEASON_BG: Record<string, string> = {
-  spring: SPRING_BG,
-  summer: SUMMER_BG,
-  autumn: AUTUMN_BG,
-};
-
-type Section = "calendar" | "products" | "crops" | "safety";
+type Section =
+  | "status"
+  | "calendar"
+  | "products"
+  | "crops"
+  | "seedling"
+  | "watering"
+  | "safety";
 
 const NAV_ITEMS: { id: Section; label: string; icon: React.ReactNode }[] = [
-  { id: "calendar", label: "月历时间表", icon: <Calendar className="w-4 h-4" /> },
-  { id: "products", label: "药剂肥料速查", icon: <Droplets className="w-4 h-4" /> },
+  { id: "status", label: "当前状态", icon: <Zap className="w-4 h-4" /> },
+  { id: "calendar", label: "月历", icon: <Calendar className="w-4 h-4" /> },
+  { id: "products", label: "药剂肥料", icon: <Droplets className="w-4 h-4" /> },
   { id: "crops", label: "作物管理", icon: <Leaf className="w-4 h-4" /> },
-  { id: "safety", label: "安全准则", icon: <Shield className="w-4 h-4" /> },
+  { id: "seedling", label: "育苗", icon: <Sprout className="w-4 h-4" /> },
+  { id: "watering", label: "浇水", icon: <CloudRain className="w-4 h-4" /> },
+  { id: "safety", label: "安全", icon: <Shield className="w-4 h-4" /> },
 ];
 
 // ─── Fade-in animation wrapper ───
-function FadeIn({ children, delay = 0, className = "" }: { children: React.ReactNode; delay?: number; className?: string }) {
+function FadeIn({
+  children,
+  delay = 0,
+  className = "",
+}: {
+  children: React.ReactNode;
+  delay?: number;
+  className?: string;
+}) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -67,17 +93,60 @@ function FadeIn({ children, delay = 0, className = "" }: { children: React.React
 // ─── Type badge ───
 function TypeBadge({ type }: { type: CalendarTask["type"] }) {
   const styles: Record<string, string> = {
-    "预防打药": "bg-emerald-100 text-emerald-800 border-emerald-200",
-    "治疗打药": "bg-blue-100 text-blue-800 border-blue-200",
-    "施肥": "bg-amber-100 text-amber-800 border-amber-200",
-    "物理防御": "bg-orange-100 text-orange-800 border-orange-200",
-    "停药": "bg-red-100 text-red-800 border-red-200",
-    "应急治疗": "bg-rose-100 text-rose-800 border-rose-200",
+    预防打药: "bg-emerald-100 text-emerald-800 border-emerald-200",
+    治疗打药: "bg-blue-100 text-blue-800 border-blue-200",
+    施肥: "bg-amber-100 text-amber-800 border-amber-200",
+    物理防御: "bg-orange-100 text-orange-800 border-orange-200",
+    停药: "bg-red-100 text-red-800 border-red-200",
+    应急治疗: "bg-rose-100 text-rose-800 border-rose-200",
+    育苗: "bg-lime-100 text-lime-800 border-lime-200",
+    浇水: "bg-sky-100 text-sky-800 border-sky-200",
   };
   return (
-    <span className={`inline-block px-2 py-0.5 text-xs font-medium rounded border ${styles[type] || "bg-gray-100 text-gray-700 border-gray-200"}`}>
+    <span
+      className={`inline-block px-2 py-0.5 text-xs font-medium rounded border ${styles[type] || "bg-gray-100 text-gray-700 border-gray-200"}`}
+    >
       {type}
     </span>
+  );
+}
+
+// ─── Plant Status Card ───
+function PlantStatusCard({ plant }: { plant: PlantStatus }) {
+  return (
+    <motion.div
+      layout
+      className="bg-white rounded-xl border-2 border-amber-200 shadow-md overflow-hidden"
+    >
+      <div className="p-4">
+        <div className="flex items-center gap-3 mb-3">
+          <span className="text-3xl">{plant.emoji}</span>
+          <div>
+            <h3 className="font-semibold text-foreground">{plant.name}</h3>
+            <span className="text-sm font-medium text-amber-700">
+              {plant.currentState}
+            </span>
+          </div>
+        </div>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-2">
+          <p className="text-xs font-bold text-red-700 uppercase tracking-wide mb-1">
+            🚨 现在该做的
+          </p>
+          <p className="text-sm font-semibold text-red-800">
+            {plant.urgentAction}
+          </p>
+          <p className="text-xs text-red-700 mt-1 leading-relaxed">
+            {plant.urgentDetail}
+          </p>
+        </div>
+        <div className="bg-sky-50 border border-sky-200 rounded-lg p-2">
+          <p className="text-xs text-sky-700">
+            <span className="font-semibold">下一步：</span>
+            {plant.nextAction}
+          </p>
+        </div>
+      </div>
+    </motion.div>
   );
 }
 
@@ -85,10 +154,11 @@ function TypeBadge({ type }: { type: CalendarTask["type"] }) {
 function ProductCard({ product }: { product: Product }) {
   const [open, setOpen] = useState(false);
   const categoryColors: Record<string, string> = {
-    "杀菌剂": "border-l-emerald-600",
-    "杀虫剂": "border-l-amber-600",
-    "肥料": "border-l-sky-600",
-    "物理防御": "border-l-orange-500",
+    杀菌剂: "border-l-emerald-600",
+    杀虫剂: "border-l-amber-600",
+    杀菌杀虫多效: "border-l-teal-500",
+    肥料: "border-l-sky-600",
+    物理防御: "border-l-orange-500",
   };
 
   return (
@@ -103,13 +173,21 @@ function ProductCard({ product }: { product: Product }) {
         <span className="text-2xl mt-0.5 shrink-0">{product.icon}</span>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="font-semibold text-foreground text-sm leading-tight">{product.nameCn}</h3>
-            <span className="text-xs px-1.5 py-0.5 bg-muted rounded text-muted-foreground">{product.role}</span>
+            <h3 className="font-semibold text-foreground text-sm leading-tight">
+              {product.nameCn}
+            </h3>
+            <span className="text-xs px-1.5 py-0.5 bg-muted rounded text-muted-foreground">
+              {product.role}
+            </span>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">{product.name}</p>
-          <p className="text-xs text-muted-foreground">活性成分：{product.activeIngredientCn} ({product.activeIngredient})</p>
+          <p className="text-xs text-muted-foreground">
+            活性成分：{product.activeIngredientCn} ({product.activeIngredient})
+          </p>
         </div>
-        <ChevronDown className={`w-4 h-4 text-muted-foreground shrink-0 mt-1 transition-transform ${open ? "rotate-180" : ""}`} />
+        <ChevronDown
+          className={`w-4 h-4 text-muted-foreground shrink-0 mt-1 transition-transform ${open ? "rotate-180" : ""}`}
+        />
       </button>
       <AnimatePresence>
         {open && (
@@ -123,26 +201,44 @@ function ProductCard({ product }: { product: Product }) {
             <div className="px-4 pb-4 space-y-2 border-t border-border/40 pt-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
                 <div className="bg-muted/50 rounded p-2">
-                  <span className="text-xs text-muted-foreground block">配比</span>
-                  <span className="text-foreground whitespace-pre-line text-xs">{product.mixRatio}</span>
+                  <span className="text-xs text-muted-foreground block">
+                    配比
+                  </span>
+                  <span className="text-foreground whitespace-pre-line text-xs">
+                    {product.mixRatio}
+                  </span>
                 </div>
                 <div className="bg-muted/50 rounded p-2">
-                  <span className="text-xs text-muted-foreground block">频率</span>
-                  <span className="text-foreground text-xs">{product.frequency}</span>
+                  <span className="text-xs text-muted-foreground block">
+                    频率
+                  </span>
+                  <span className="text-foreground text-xs">
+                    {product.frequency}
+                  </span>
                 </div>
                 <div className="bg-muted/50 rounded p-2">
-                  <span className="text-xs text-muted-foreground block">安全采收间隔 (PHI)</span>
-                  <span className="text-foreground whitespace-pre-line text-xs">{product.phi}</span>
+                  <span className="text-xs text-muted-foreground block">
+                    安全采收间隔 (PHI)
+                  </span>
+                  <span className="text-foreground whitespace-pre-line text-xs">
+                    {product.phi}
+                  </span>
                 </div>
                 <div className="bg-muted/50 rounded p-2">
-                  <span className="text-xs text-muted-foreground block">Amazon评分</span>
-                  <span className="text-foreground text-xs">{product.amazonRating}</span>
+                  <span className="text-xs text-muted-foreground block">
+                    Amazon评分
+                  </span>
+                  <span className="text-foreground text-xs">
+                    {product.amazonRating}
+                  </span>
                 </div>
               </div>
               {product.keyWarning && (
                 <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded p-2">
                   <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
-                  <span className="text-xs text-red-800">{product.keyWarning}</span>
+                  <span className="text-xs text-red-800">
+                    {product.keyWarning}
+                  </span>
                 </div>
               )}
             </div>
@@ -156,10 +252,15 @@ function ProductCard({ product }: { product: Product }) {
 // ─── Crop Card ───
 function CropCard({ crop }: { crop: Crop }) {
   const [open, setOpen] = useState(false);
-  const matchedProds = products.filter((p) => crop.matchedProducts.includes(p.id));
+  const matchedProds = products.filter((p) =>
+    crop.matchedProducts.includes(p.id),
+  );
 
   return (
-    <motion.div layout className="bg-card rounded-lg border border-border/60 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+    <motion.div
+      layout
+      className="bg-card rounded-lg border border-border/60 shadow-sm hover:shadow-md transition-shadow overflow-hidden"
+    >
       <button
         onClick={() => setOpen(!open)}
         className="w-full text-left p-4 flex items-center gap-3"
@@ -169,7 +270,9 @@ function CropCard({ crop }: { crop: Crop }) {
           <h3 className="font-semibold text-foreground">{crop.name}</h3>
           <span className="text-xs text-muted-foreground">{crop.category}</span>
         </div>
-        <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
+        <ChevronDown
+          className={`w-4 h-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
+        />
       </button>
       <AnimatePresence>
         {open && (
@@ -182,30 +285,45 @@ function CropCard({ crop }: { crop: Crop }) {
           >
             <div className="px-4 pb-4 space-y-3 border-t border-border/40 pt-3">
               <div>
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">常见病害</h4>
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                  常见病害
+                </h4>
                 <div className="flex flex-wrap gap-1">
                   {crop.diseases.map((d) => (
-                    <span key={d} className="text-xs px-2 py-0.5 bg-red-50 text-red-700 border border-red-200 rounded">
+                    <span
+                      key={d}
+                      className="text-xs px-2 py-0.5 bg-red-50 text-red-700 border border-red-200 rounded"
+                    >
                       {d}
                     </span>
                   ))}
                 </div>
               </div>
               <div>
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">常见虫害</h4>
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                  常见虫害
+                </h4>
                 <div className="flex flex-wrap gap-1">
                   {crop.pests.map((p) => (
-                    <span key={p} className="text-xs px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded">
+                    <span
+                      key={p}
+                      className="text-xs px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded"
+                    >
                       {p}
                     </span>
                   ))}
                 </div>
               </div>
               <div>
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">适用产品</h4>
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                  适用产品
+                </h4>
                 <div className="flex flex-wrap gap-1">
                   {matchedProds.map((p) => (
-                    <span key={p.id} className="text-xs px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded">
+                    <span
+                      key={p.id}
+                      className="text-xs px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded"
+                    >
                       {p.icon} {p.nameCn}
                     </span>
                   ))}
@@ -221,27 +339,70 @@ function CropCard({ crop }: { crop: Crop }) {
 
 // ─── Calendar Month Card ───
 function CalendarMonthCard({ month }: { month: CalendarMonth }) {
-  const [open, setOpen] = useState(false);
-  const seasonColors: Record<string, { bg: string; border: string; text: string; badge: string }> = {
-    spring: { bg: "bg-pink-50/60", border: "border-pink-200", text: "text-pink-800", badge: "bg-pink-100 text-pink-700" },
-    summer: { bg: "bg-amber-50/60", border: "border-amber-200", text: "text-amber-800", badge: "bg-amber-100 text-amber-700" },
-    autumn: { bg: "bg-orange-50/60", border: "border-orange-200", text: "text-orange-800", badge: "bg-orange-100 text-orange-700" },
+  const [open, setOpen] = useState(month.monthNum === 4 && month.month.includes("上旬"));
+  const seasonColors: Record<
+    string,
+    { bg: string; border: string; badge: string }
+  > = {
+    spring: {
+      bg: "bg-pink-50/60",
+      border: "border-pink-200",
+      badge: "bg-pink-100 text-pink-700",
+    },
+    summer: {
+      bg: "bg-amber-50/60",
+      border: "border-amber-200",
+      badge: "bg-amber-100 text-amber-700",
+    },
+    autumn: {
+      bg: "bg-orange-50/60",
+      border: "border-orange-200",
+      badge: "bg-orange-100 text-orange-700",
+    },
   };
   const sc = seasonColors[month.season];
-  const seasonLabel: Record<string, string> = { spring: "春", summer: "夏", autumn: "秋" };
+  const seasonLabel: Record<string, string> = {
+    spring: "春",
+    summer: "夏",
+    autumn: "秋",
+  };
+
+  const isUrgent = month.month.includes("上旬") && month.monthNum === 4;
 
   return (
-    <motion.div layout className={`rounded-xl border ${sc.border} ${sc.bg} overflow-hidden shadow-sm`}>
+    <motion.div
+      layout
+      className={`rounded-xl border-2 ${isUrgent ? "border-red-400 ring-2 ring-red-200" : sc.border} ${sc.bg} overflow-hidden shadow-sm`}
+    >
       <button
         onClick={() => setOpen(!open)}
         className="w-full text-left p-5 flex items-start gap-4"
       >
-        <div className={`shrink-0 w-14 h-14 rounded-lg ${sc.badge} flex flex-col items-center justify-center`}>
-          <span className="text-lg font-bold leading-none">{month.month.split("-")[0].replace("月", "")}</span>
-          <span className="text-[10px] mt-0.5">{seasonLabel[month.season]}季</span>
+        <div
+          className={`shrink-0 w-14 h-14 rounded-lg ${isUrgent ? "bg-red-100 text-red-700" : sc.badge} flex flex-col items-center justify-center`}
+        >
+          {isUrgent ? (
+            <>
+              <Zap className="w-5 h-5" />
+              <span className="text-[10px] mt-0.5 font-bold">NOW</span>
+            </>
+          ) : (
+            <>
+              <span className="text-lg font-bold leading-none">
+                {month.month.split("月")[0]}
+              </span>
+              <span className="text-[10px] mt-0.5">
+                {seasonLabel[month.season]}季
+              </span>
+            </>
+          )}
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className={`font-display text-lg font-semibold ${sc.text}`}>{month.title}</h3>
+          <h3
+            className={`font-display text-lg font-semibold ${isUrgent ? "text-red-800" : "text-foreground"}`}
+          >
+            {month.title}
+          </h3>
           <p className="text-sm text-muted-foreground mt-0.5">{month.goal}</p>
           {month.warning && (
             <p className="text-xs text-red-700 font-medium mt-1 flex items-center gap-1">
@@ -250,7 +411,9 @@ function CalendarMonthCard({ month }: { month: CalendarMonth }) {
             </p>
           )}
         </div>
-        <ChevronDown className={`w-5 h-5 text-muted-foreground shrink-0 mt-2 transition-transform duration-300 ${open ? "rotate-180" : ""}`} />
+        <ChevronDown
+          className={`w-5 h-5 text-muted-foreground shrink-0 mt-2 transition-transform duration-300 ${open ? "rotate-180" : ""}`}
+        />
       </button>
       <AnimatePresence>
         {open && (
@@ -263,13 +426,20 @@ function CalendarMonthCard({ month }: { month: CalendarMonth }) {
           >
             <div className="px-5 pb-5 space-y-3">
               {month.tasks.map((task, i) => (
-                <div key={i} className="bg-white/80 rounded-lg border border-border/40 p-4 space-y-2">
+                <div
+                  key={i}
+                  className="bg-white/80 rounded-lg border border-border/40 p-4 space-y-2"
+                >
                   <div className="flex items-center gap-2 flex-wrap">
                     <TypeBadge type={task.type} />
-                    <span className="text-sm font-medium text-foreground">{task.action}</span>
+                    <span className="text-sm font-medium text-foreground">
+                      {task.action}
+                    </span>
                   </div>
                   <p className="text-sm text-muted-foreground">{task.crops}</p>
-                  <p className="text-sm text-foreground leading-relaxed whitespace-pre-line">{task.detail}</p>
+                  <p className="text-sm text-foreground leading-relaxed whitespace-pre-line">
+                    {task.detail}
+                  </p>
                   {task.frequency && (
                     <p className="text-xs text-primary font-medium flex items-center gap-1">
                       <Calendar className="w-3 h-3" />
@@ -286,8 +456,170 @@ function CalendarMonthCard({ month }: { month: CalendarMonth }) {
   );
 }
 
+// ─── Seedling Guide Card ───
+function SeedlingCard({ guide }: { guide: SeedlingGuide }) {
+  const [open, setOpen] = useState(false);
+  const methodColor: Record<string, string> = {
+    移栽小苗: "bg-green-100 text-green-800 border-green-200",
+    直播种子: "bg-amber-100 text-amber-800 border-amber-200",
+    已定植: "bg-sky-100 text-sky-800 border-sky-200",
+  };
+
+  return (
+    <motion.div
+      layout
+      className="bg-card rounded-lg border border-border/60 shadow-sm hover:shadow-md transition-shadow overflow-hidden"
+    >
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full text-left p-4 flex items-center gap-3"
+      >
+        <span className="text-3xl">{guide.emoji}</span>
+        <div className="flex-1">
+          <h3 className="font-semibold text-foreground">{guide.crop}</h3>
+          <span
+            className={`text-xs px-2 py-0.5 rounded border ${methodColor[guide.method]}`}
+          >
+            {guide.method}
+          </span>
+        </div>
+        <ChevronDown
+          className={`w-4 h-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 pb-4 space-y-2 border-t border-border/40 pt-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="bg-muted/50 rounded p-2">
+                  <span className="text-xs text-muted-foreground block">
+                    <Thermometer className="w-3 h-3 inline mr-1" />
+                    最低土温
+                  </span>
+                  <span className="text-foreground text-xs font-medium">
+                    {guide.soilTemp}
+                  </span>
+                </div>
+                <div className="bg-muted/50 rounded p-2">
+                  <span className="text-xs text-muted-foreground block">
+                    株距/行距
+                  </span>
+                  <span className="text-foreground text-xs">
+                    {guide.spacing}
+                  </span>
+                </div>
+                <div className="bg-muted/50 rounded p-2">
+                  <span className="text-xs text-muted-foreground block">
+                    种植深度
+                  </span>
+                  <span className="text-foreground text-xs">{guide.depth}</span>
+                </div>
+                <div className="bg-muted/50 rounded p-2">
+                  <span className="text-xs text-muted-foreground block">
+                    炼苗要求
+                  </span>
+                  <span className="text-foreground text-xs">
+                    {guide.hardenOff}
+                  </span>
+                </div>
+              </div>
+              <div className="bg-green-50 border border-green-200 rounded p-2">
+                <p className="text-xs text-green-800">
+                  <span className="font-semibold">💡 小贴士：</span>
+                  {guide.tips}
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
+
+// ─── Watering Guide Card ───
+function WateringCard({ guide }: { guide: WateringGuide }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <motion.div
+      layout
+      className="bg-card rounded-lg border border-border/60 shadow-sm hover:shadow-md transition-shadow overflow-hidden border-l-4 border-l-sky-400"
+    >
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full text-left p-4 flex items-center gap-3"
+      >
+        <span className="text-3xl">{guide.emoji}</span>
+        <div className="flex-1">
+          <h3 className="font-semibold text-foreground">{guide.crop}</h3>
+          <span className="text-xs text-muted-foreground">
+            {guide.category}
+          </span>
+        </div>
+        <ChevronDown
+          className={`w-4 h-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 pb-4 space-y-2 border-t border-border/40 pt-3">
+              <div className="grid grid-cols-1 gap-2">
+                <div className="bg-sky-50 rounded p-3">
+                  <span className="text-xs font-semibold text-sky-700 block mb-1">
+                    🌱 新植/幼苗期
+                  </span>
+                  <span className="text-foreground text-xs whitespace-pre-line">
+                    {guide.newPlant}
+                  </span>
+                </div>
+                <div className="bg-emerald-50 rounded p-3">
+                  <span className="text-xs font-semibold text-emerald-700 block mb-1">
+                    🌳 成熟期
+                  </span>
+                  <span className="text-foreground text-xs whitespace-pre-line">
+                    {guide.established}
+                  </span>
+                </div>
+                <div className="bg-muted/50 rounded p-3">
+                  <span className="text-xs font-semibold text-muted-foreground block mb-1">
+                    💧 浇水方法
+                  </span>
+                  <span className="text-foreground text-xs">
+                    {guide.method}
+                  </span>
+                </div>
+              </div>
+              <div className="bg-amber-50 border border-amber-200 rounded p-2">
+                <p className="text-xs text-amber-800">
+                  <span className="font-semibold">💡 注意：</span>
+                  {guide.tips}
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
+
 // ─── Safety Rule Card ───
-function SafetyCard({ rule }: { rule: typeof safetyRules[0] }) {
+function SafetyCard({ rule }: { rule: (typeof safetyRules)[0] }) {
   const levelStyles: Record<string, string> = {
     critical: "bg-red-50 border-red-300 shadow-red-100/50",
     warning: "bg-amber-50 border-amber-300 shadow-amber-100/50",
@@ -305,33 +637,58 @@ function SafetyCard({ rule }: { rule: typeof safetyRules[0] }) {
   };
 
   return (
-    <div className={`rounded-lg border p-4 shadow-sm ${levelStyles[rule.level]}`}>
+    <div
+      className={`rounded-lg border p-4 shadow-sm ${levelStyles[rule.level]}`}
+    >
       <div className="flex items-start gap-3">
         <span className="text-2xl shrink-0">{rule.icon}</span>
         <div>
-          <h3 className={`font-semibold text-sm ${titleStyles[rule.level]}`}>{rule.title}</h3>
-          <p className={`text-sm mt-1 leading-relaxed ${contentStyles[rule.level]}`}>{rule.content}</p>
+          <h3 className={`font-semibold text-sm ${titleStyles[rule.level]}`}>
+            {rule.title}
+          </h3>
+          <p
+            className={`text-sm mt-1 leading-relaxed ${contentStyles[rule.level]}`}
+          >
+            {rule.content}
+          </p>
         </div>
       </div>
     </div>
   );
 }
 
+// ─── Section Divider ───
+function Divider({ icon }: { icon: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-4 py-4">
+      <div className="flex-1 h-px bg-border" />
+      <span className="text-primary/40">{icon}</span>
+      <div className="flex-1 h-px bg-border" />
+    </div>
+  );
+}
+
 // ─── Main Home Page ───
 export default function Home() {
-  const [activeSection, setActiveSection] = useState<Section>("calendar");
+  const [activeSection, setActiveSection] = useState<Section>("status");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const sectionRefs = useRef<Record<Section, HTMLElement | null>>({
+    status: null,
     calendar: null,
     products: null,
     crops: null,
+    seedling: null,
+    watering: null,
     safety: null,
   });
 
   const scrollToSection = (id: Section) => {
     setActiveSection(id);
     setMobileMenuOpen(false);
-    sectionRefs.current[id]?.scrollIntoView({ behavior: "smooth", block: "start" });
+    sectionRefs.current[id]?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
   };
 
   // Track active section on scroll
@@ -344,7 +701,7 @@ export default function Home() {
           }
         });
       },
-      { rootMargin: "-20% 0px -60% 0px" }
+      { rootMargin: "-20% 0px -60% 0px" },
     );
 
     Object.values(sectionRefs.current).forEach((ref) => {
@@ -355,7 +712,12 @@ export default function Home() {
   }, []);
 
   const fungicides = products.filter((p) => p.category === "杀菌剂");
-  const insecticides = products.filter((p) => p.category === "杀虫剂" || p.category === "物理防御");
+  const multiEffect = products.filter(
+    (p) => p.category === "杀菌杀虫多效",
+  );
+  const insecticides = products.filter(
+    (p) => p.category === "杀虫剂" || p.category === "物理防御",
+  );
   const fertilizers = products.filter((p) => p.category === "肥料");
 
   const fruitTrees = crops.filter((c) => c.category === "果树");
@@ -381,17 +743,30 @@ export default function Home() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, ease: "easeOut" }}
           >
-            <p className="text-sm font-medium text-earth tracking-widest uppercase mb-2" style={{ color: "var(--color-earth)" }}>
+            <p
+              className="text-sm font-medium tracking-widest uppercase mb-2"
+              style={{ color: "var(--color-earth)" }}
+            >
               2026 家庭园艺手册
             </p>
-            <h1 className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold leading-tight drop-shadow-sm" style={{ color: "var(--color-bark)" }}>
+            <h1
+              className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold leading-tight drop-shadow-sm"
+              style={{ color: "var(--color-bark)" }}
+            >
               果园与菜园
               <br />
-              <span style={{ color: "var(--color-moss)" }}>施肥与植保指南</span>
+              <span style={{ color: "var(--color-moss)" }}>
+                施肥与植保指南
+              </span>
             </h1>
-            <p className="mt-4 text-sm sm:text-base max-w-xl leading-relaxed" style={{ color: "var(--color-earth)" }}>
-              涵盖苹果、梨、葡萄、蓝莓、番茄、辣椒、茄子、芹菜、南瓜、扁豆、玫瑰共 11 种作物的完整管理方案。
-              基于密苏里大学与威斯康星大学农业推广站的权威指南，结合 Amazon 真实用户评价验证。
+            <p
+              className="mt-4 text-sm sm:text-base max-w-xl leading-relaxed"
+              style={{ color: "var(--color-earth)" }}
+            >
+              涵盖苹果、梨、葡萄、蓝莓、番茄、辣椒、茄子、芹菜、南瓜、豆角、玫瑰共
+              11 种作物。
+              <br />
+              含育苗定植、浇水管理、预防性打药、施肥追肥完整方案。
             </p>
           </motion.div>
         </div>
@@ -401,12 +776,12 @@ export default function Home() {
       <nav className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border/60 shadow-sm">
         <div className="container">
           {/* Desktop nav */}
-          <div className="hidden sm:flex items-center gap-1 py-2">
+          <div className="hidden md:flex items-center gap-1 py-2">
             {NAV_ITEMS.map((item) => (
               <button
                 key={item.id}
                 onClick={() => scrollToSection(item.id)}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                   activeSection === item.id
                     ? "bg-primary text-primary-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted"
@@ -418,7 +793,7 @@ export default function Home() {
             ))}
           </div>
           {/* Mobile nav */}
-          <div className="sm:hidden flex items-center justify-between py-2">
+          <div className="md:hidden flex items-center justify-between py-2">
             <span className="text-sm font-semibold text-foreground">
               {NAV_ITEMS.find((n) => n.id === activeSection)?.label}
             </span>
@@ -426,7 +801,11 @@ export default function Home() {
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="p-2 rounded-lg hover:bg-muted"
             >
-              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              {mobileMenuOpen ? (
+                <X className="w-5 h-5" />
+              ) : (
+                <Menu className="w-5 h-5" />
+              )}
             </button>
           </div>
           <AnimatePresence>
@@ -435,7 +814,7 @@ export default function Home() {
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: "auto", opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
-                className="sm:hidden overflow-hidden pb-2"
+                className="md:hidden overflow-hidden pb-2"
               >
                 {NAV_ITEMS.map((item) => (
                   <button
@@ -458,11 +837,47 @@ export default function Home() {
       </nav>
 
       {/* ─── Main Content ─── */}
-      <main className="container py-8 space-y-16">
+      <main className="container py-8 space-y-12">
+        {/* ─── Plant Status Section ─── */}
+        <section
+          id="status"
+          ref={(el) => {
+            sectionRefs.current.status = el;
+          }}
+          className="scroll-mt-20"
+        >
+          <FadeIn>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center">
+                <Zap className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <h2 className="font-display text-2xl font-bold text-foreground">
+                  🚨 当前植物状态
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  2026年4月初 — 每棵植物现在该做什么
+                </p>
+              </div>
+            </div>
+          </FadeIn>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mt-4">
+            {plantStatus.map((plant, i) => (
+              <FadeIn key={plant.id} delay={i * 0.05}>
+                <PlantStatusCard plant={plant} />
+              </FadeIn>
+            ))}
+          </div>
+        </section>
+
+        <Divider icon={<Calendar className="w-5 h-5" />} />
+
         {/* ─── Calendar Section ─── */}
         <section
           id="calendar"
-          ref={(el) => { sectionRefs.current.calendar = el; }}
+          ref={(el) => {
+            sectionRefs.current.calendar = el;
+          }}
           className="scroll-mt-20"
         >
           <FadeIn>
@@ -471,31 +886,32 @@ export default function Home() {
                 <Calendar className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <h2 className="font-display text-2xl font-bold text-foreground">月历时间表</h2>
-                <p className="text-sm text-muted-foreground">按月份查看每种作物的施肥与打药计划</p>
+                <h2 className="font-display text-2xl font-bold text-foreground">
+                  月历时间表
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  按月份查看每种作物的施肥、打药、育苗和浇水计划
+                </p>
               </div>
             </div>
           </FadeIn>
           <div className="space-y-4">
             {calendar.map((month, i) => (
-              <FadeIn key={month.monthNum} delay={i * 0.05}>
+              <FadeIn key={month.month} delay={i * 0.05}>
                 <CalendarMonthCard month={month} />
               </FadeIn>
             ))}
           </div>
         </section>
 
-        {/* ─── Divider with vine decoration ─── */}
-        <div className="flex items-center gap-4 py-4">
-          <div className="flex-1 h-px bg-border" />
-          <Leaf className="w-5 h-5 text-primary/40" />
-          <div className="flex-1 h-px bg-border" />
-        </div>
+        <Divider icon={<Droplets className="w-5 h-5" />} />
 
         {/* ─── Products Section ─── */}
         <section
           id="products"
-          ref={(el) => { sectionRefs.current.products = el; }}
+          ref={(el) => {
+            sectionRefs.current.products = el;
+          }}
           className="scroll-mt-20"
         >
           <FadeIn>
@@ -504,8 +920,12 @@ export default function Home() {
                 <Droplets className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <h2 className="font-display text-2xl font-bold text-foreground">药剂与肥料速查</h2>
-                <p className="text-sm text-muted-foreground">点击展开查看配比、频率、PHI 和 Amazon 评分</p>
+                <h2 className="font-display text-2xl font-bold text-foreground">
+                  药剂与肥料速查
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  点击展开查看配比、频率、PHI 和 Amazon 评分
+                </p>
               </div>
             </div>
           </FadeIn>
@@ -515,7 +935,9 @@ export default function Home() {
             <h3 className="flex items-center gap-2 text-lg font-display font-semibold text-foreground mb-3">
               <Shield className="w-4 h-4 text-emerald-600" />
               杀菌剂
-              <span className="text-xs font-normal text-muted-foreground">（预防病害）</span>
+              <span className="text-xs font-normal text-muted-foreground">
+                （预防和治疗真菌病害）
+              </span>
             </h3>
           </FadeIn>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-8">
@@ -526,12 +948,36 @@ export default function Home() {
             ))}
           </div>
 
+          {/* Multi-effect */}
+          {multiEffect.length > 0 && (
+            <>
+              <FadeIn>
+                <h3 className="flex items-center gap-2 text-lg font-display font-semibold text-foreground mb-3">
+                  <Leaf className="w-4 h-4 text-teal-600" />
+                  杀菌杀虫多效
+                  <span className="text-xs font-normal text-muted-foreground">
+                    （4合1：杀菌+杀虫+杀螨+杀线虫）
+                  </span>
+                </h3>
+              </FadeIn>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-8">
+                {multiEffect.map((p, i) => (
+                  <FadeIn key={p.id} delay={i * 0.05}>
+                    <ProductCard product={p} />
+                  </FadeIn>
+                ))}
+              </div>
+            </>
+          )}
+
           {/* Insecticides */}
           <FadeIn>
             <h3 className="flex items-center gap-2 text-lg font-display font-semibold text-foreground mb-3">
               <Bug className="w-4 h-4 text-amber-600" />
               杀虫剂与物理防御
-              <span className="text-xs font-normal text-muted-foreground">（防治虫害）</span>
+              <span className="text-xs font-normal text-muted-foreground">
+                （防治虫害）
+              </span>
             </h3>
           </FadeIn>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-8">
@@ -547,7 +993,9 @@ export default function Home() {
             <h3 className="flex items-center gap-2 text-lg font-display font-semibold text-foreground mb-3">
               <Sprout className="w-4 h-4 text-sky-600" />
               肥料
-              <span className="text-xs font-normal text-muted-foreground">（营养补给）</span>
+              <span className="text-xs font-normal text-muted-foreground">
+                （营养补给）
+              </span>
             </h3>
           </FadeIn>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -559,17 +1007,14 @@ export default function Home() {
           </div>
         </section>
 
-        {/* ─── Divider ─── */}
-        <div className="flex items-center gap-4 py-4">
-          <div className="flex-1 h-px bg-border" />
-          <Flower2 className="w-5 h-5 text-primary/40" />
-          <div className="flex-1 h-px bg-border" />
-        </div>
+        <Divider icon={<Flower2 className="w-5 h-5" />} />
 
         {/* ─── Crops Section ─── */}
         <section
           id="crops"
-          ref={(el) => { sectionRefs.current.crops = el; }}
+          ref={(el) => {
+            sectionRefs.current.crops = el;
+          }}
           className="scroll-mt-20"
         >
           <FadeIn>
@@ -578,13 +1023,16 @@ export default function Home() {
                 <Leaf className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <h2 className="font-display text-2xl font-bold text-foreground">作物管理</h2>
-                <p className="text-sm text-muted-foreground">查看每种作物的病虫害和适用产品</p>
+                <h2 className="font-display text-2xl font-bold text-foreground">
+                  作物管理
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  查看每种作物的病虫害和适用产品
+                </p>
               </div>
             </div>
           </FadeIn>
 
-          {/* Fruit trees */}
           <FadeIn>
             <h3 className="flex items-center gap-2 text-lg font-display font-semibold text-foreground mb-3">
               <TreePine className="w-4 h-4 text-emerald-700" />
@@ -599,7 +1047,6 @@ export default function Home() {
             ))}
           </div>
 
-          {/* Berries */}
           <FadeIn>
             <h3 className="flex items-center gap-2 text-lg font-display font-semibold text-foreground mb-3">
               <Cherry className="w-4 h-4 text-purple-600" />
@@ -614,7 +1061,6 @@ export default function Home() {
             ))}
           </div>
 
-          {/* Vegetables */}
           <FadeIn>
             <h3 className="flex items-center gap-2 text-lg font-display font-semibold text-foreground mb-3">
               <Sprout className="w-4 h-4 text-green-600" />
@@ -629,7 +1075,6 @@ export default function Home() {
             ))}
           </div>
 
-          {/* Flowers */}
           <FadeIn>
             <h3 className="flex items-center gap-2 text-lg font-display font-semibold text-foreground mb-3">
               <Flower2 className="w-4 h-4 text-rose-500" />
@@ -645,17 +1090,82 @@ export default function Home() {
           </div>
         </section>
 
-        {/* ─── Divider ─── */}
-        <div className="flex items-center gap-4 py-4">
-          <div className="flex-1 h-px bg-border" />
-          <Shield className="w-5 h-5 text-primary/40" />
-          <div className="flex-1 h-px bg-border" />
-        </div>
+        <Divider icon={<Sprout className="w-5 h-5" />} />
+
+        {/* ─── Seedling Guide Section ─── */}
+        <section
+          id="seedling"
+          ref={(el) => {
+            sectionRefs.current.seedling = el;
+          }}
+          className="scroll-mt-20"
+        >
+          <FadeIn>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-lg bg-lime-100 flex items-center justify-center">
+                <Sprout className="w-5 h-5 text-lime-700" />
+              </div>
+              <div>
+                <h2 className="font-display text-2xl font-bold text-foreground">
+                  育苗与定植指南
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  土温要求、株距、种植深度、炼苗方法
+                </p>
+              </div>
+            </div>
+          </FadeIn>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {seedlingGuides.map((g, i) => (
+              <FadeIn key={g.crop} delay={i * 0.05}>
+                <SeedlingCard guide={g} />
+              </FadeIn>
+            ))}
+          </div>
+        </section>
+
+        <Divider icon={<CloudRain className="w-5 h-5" />} />
+
+        {/* ─── Watering Guide Section ─── */}
+        <section
+          id="watering"
+          ref={(el) => {
+            sectionRefs.current.watering = el;
+          }}
+          className="scroll-mt-20"
+        >
+          <FadeIn>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-lg bg-sky-100 flex items-center justify-center">
+                <CloudRain className="w-5 h-5 text-sky-700" />
+              </div>
+              <div>
+                <h2 className="font-display text-2xl font-bold text-foreground">
+                  浇水指南
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  新植期 vs 成熟期浇水量、方法和注意事项
+                </p>
+              </div>
+            </div>
+          </FadeIn>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {wateringGuides.map((g, i) => (
+              <FadeIn key={g.crop} delay={i * 0.05}>
+                <WateringCard guide={g} />
+              </FadeIn>
+            ))}
+          </div>
+        </section>
+
+        <Divider icon={<Shield className="w-5 h-5" />} />
 
         {/* ─── Safety Section ─── */}
         <section
           id="safety"
-          ref={(el) => { sectionRefs.current.safety = el; }}
+          ref={(el) => {
+            sectionRefs.current.safety = el;
+          }}
           className="scroll-mt-20"
         >
           <FadeIn>
@@ -664,8 +1174,12 @@ export default function Home() {
                 <Shield className="w-5 h-5 text-destructive" />
               </div>
               <div>
-                <h2 className="font-display text-2xl font-bold text-foreground">安全准则（必读）</h2>
-                <p className="text-sm text-muted-foreground">使用任何药剂前请务必阅读以下安全规则</p>
+                <h2 className="font-display text-2xl font-bold text-foreground">
+                  安全准则（必读）
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  使用任何药剂前请务必阅读以下安全规则
+                </p>
               </div>
             </div>
           </FadeIn>
@@ -686,10 +1200,12 @@ export default function Home() {
             本指南仅供家庭园艺参考，使用任何农药前请仔细阅读产品标签。
           </p>
           <p className="text-xs text-muted-foreground mt-2">
-            数据来源：密苏里大学农业推广站 · 威斯康星大学推广站 · EPA产品标签 · Amazon用户评价
+            数据来源：密苏里大学农业推广站 · 威斯康星大学推广站 · EPA产品标签 ·
+            Amazon用户评价
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            2026 家庭果园与菜园管理手册
+            2026 家庭果园与菜园管理手册 · 产品已更新为 Bonide Captain Jack's
+            系列
           </p>
         </div>
       </footer>
