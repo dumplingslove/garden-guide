@@ -1,9 +1,9 @@
-/*
- * 家庭果园与菜园施肥与植保指南 — 主页 v2
+/**
+ * 家庭果园与菜园施肥与植保指南 — 主页 v3
  * 设计风格：田园手帐 (Illustrated Naturalism)
  * 色彩：亚麻白底 + 苔藓绿主色 + 泥土棕辅色 + 季节强调色
  * 字体：Playfair Display (标题) + Source Sans 3 (正文)
- * 更新：植物当前状态、育苗指南、浇水指南、Bonide产品替换
+ * 更新：浇水合并到月历、每阶段可视化概览、移除独立浇水板块
  */
 
 import { useState, useEffect, useRef } from "react";
@@ -33,7 +33,6 @@ import {
   safetyRules,
   plantStatus,
   seedlingGuides,
-  wateringGuides,
 } from "@/lib/gardenData";
 import type {
   CalendarMonth,
@@ -42,7 +41,6 @@ import type {
   Crop,
   PlantStatus,
   SeedlingGuide,
-  WateringGuide,
 } from "@/lib/gardenData";
 
 const HERO_IMG =
@@ -54,7 +52,6 @@ type Section =
   | "products"
   | "crops"
   | "seedling"
-  | "watering"
   | "safety";
 
 const NAV_ITEMS: { id: Section; label: string; icon: React.ReactNode }[] = [
@@ -63,7 +60,6 @@ const NAV_ITEMS: { id: Section; label: string; icon: React.ReactNode }[] = [
   { id: "products", label: "药剂肥料", icon: <Droplets className="w-4 h-4" /> },
   { id: "crops", label: "作物管理", icon: <Leaf className="w-4 h-4" /> },
   { id: "seedling", label: "育苗", icon: <Sprout className="w-4 h-4" /> },
-  { id: "watering", label: "浇水", icon: <CloudRain className="w-4 h-4" /> },
   { id: "safety", label: "安全", icon: <Shield className="w-4 h-4" /> },
 ];
 
@@ -90,24 +86,166 @@ function FadeIn({
   );
 }
 
+// ─── Task type config ───
+const TASK_TYPE_CONFIG: Record<string, { color: string; icon: string; badgeClass: string }> = {
+  预防打药: { color: "emerald", icon: "🛡️", badgeClass: "bg-emerald-100 text-emerald-800 border-emerald-200" },
+  治疗打药: { color: "blue", icon: "💊", badgeClass: "bg-blue-100 text-blue-800 border-blue-200" },
+  施肥: { color: "amber", icon: "🌾", badgeClass: "bg-amber-100 text-amber-800 border-amber-200" },
+  物理防御: { color: "orange", icon: "🪤", badgeClass: "bg-orange-100 text-orange-800 border-orange-200" },
+  停药: { color: "red", icon: "⏰", badgeClass: "bg-red-100 text-red-800 border-red-200" },
+  应急治疗: { color: "rose", icon: "🚨", badgeClass: "bg-rose-100 text-rose-800 border-rose-200" },
+  育苗: { color: "lime", icon: "🌱", badgeClass: "bg-lime-100 text-lime-800 border-lime-200" },
+  浇水: { color: "sky", icon: "💧", badgeClass: "bg-sky-100 text-sky-800 border-sky-200" },
+};
+
 // ─── Type badge ───
 function TypeBadge({ type }: { type: CalendarTask["type"] }) {
-  const styles: Record<string, string> = {
-    预防打药: "bg-emerald-100 text-emerald-800 border-emerald-200",
-    治疗打药: "bg-blue-100 text-blue-800 border-blue-200",
-    施肥: "bg-amber-100 text-amber-800 border-amber-200",
-    物理防御: "bg-orange-100 text-orange-800 border-orange-200",
-    停药: "bg-red-100 text-red-800 border-red-200",
-    应急治疗: "bg-rose-100 text-rose-800 border-rose-200",
-    育苗: "bg-lime-100 text-lime-800 border-lime-200",
-    浇水: "bg-sky-100 text-sky-800 border-sky-200",
-  };
+  const config = TASK_TYPE_CONFIG[type];
   return (
     <span
-      className={`inline-block px-2 py-0.5 text-xs font-medium rounded border ${styles[type] || "bg-gray-100 text-gray-700 border-gray-200"}`}
+      className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded border ${config?.badgeClass || "bg-gray-100 text-gray-700 border-gray-200"}`}
     >
+      <span>{config?.icon}</span>
       {type}
     </span>
+  );
+}
+
+// ─── Phase Visual Summary ───
+function PhaseSummary({ month }: { month: CalendarMonth }) {
+  const summary = month.summary;
+  if (!summary) return null;
+
+  const stats = [
+    { label: "打药", count: summary.sprayCount, icon: "🛡️", color: "bg-emerald-500" },
+    { label: "施肥", count: summary.fertCount, icon: "🌾", color: "bg-amber-500" },
+    { label: "浇水", count: summary.waterCount, icon: "💧", color: "bg-sky-500" },
+    { label: "其他", count: summary.otherCount, icon: "📋", color: "bg-gray-400" },
+  ];
+  const total = stats.reduce((s, x) => s + x.count, 0);
+
+  return (
+    <div className="space-y-4">
+      {/* Task type distribution bar */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <span>本阶段共 <strong className="text-foreground">{total}</strong> 项任务</span>
+        </div>
+        <div className="flex h-3 rounded-full overflow-hidden bg-muted/50">
+          {stats.filter(s => s.count > 0).map((s, i) => (
+            <div
+              key={i}
+              className={`${s.color} transition-all duration-500`}
+              style={{ width: `${(s.count / total) * 100}%` }}
+            />
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-3">
+          {stats.filter(s => s.count > 0).map((s, i) => (
+            <div key={i} className="flex items-center gap-1.5 text-xs">
+              <div className={`w-2.5 h-2.5 rounded-full ${s.color}`} />
+              <span className="text-muted-foreground">{s.icon} {s.label}</span>
+              <span className="font-semibold text-foreground">{s.count}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Key actions checklist */}
+      {summary.keyActions && summary.keyActions.length > 0 && (
+        <div className="bg-white/70 rounded-lg border border-border/40 p-3">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+            关键行动清单
+          </p>
+          <div className="space-y-1.5">
+            {summary.keyActions.map((action, i) => (
+              <div key={i} className="flex items-start gap-2 text-sm">
+                <span className="text-muted-foreground mt-0.5 shrink-0">▸</span>
+                <span className="text-foreground leading-snug">{action}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Grouped Task View ───
+function GroupedTasks({ tasks }: { tasks: CalendarTask[] }) {
+  // Group tasks by type
+  const groups: Record<string, CalendarTask[]> = {};
+  const typeOrder = ["预防打药", "治疗打药", "应急治疗", "施肥", "浇水", "育苗", "物理防御", "停药"];
+
+  tasks.forEach((task) => {
+    if (!groups[task.type]) groups[task.type] = [];
+    groups[task.type].push(task);
+  });
+
+  const sortedTypes = typeOrder.filter((t) => groups[t]);
+
+  const groupBg: Record<string, string> = {
+    预防打药: "bg-emerald-50/80 border-emerald-200",
+    治疗打药: "bg-blue-50/80 border-blue-200",
+    施肥: "bg-amber-50/80 border-amber-200",
+    物理防御: "bg-orange-50/80 border-orange-200",
+    停药: "bg-red-50/80 border-red-200",
+    应急治疗: "bg-rose-50/80 border-rose-200",
+    育苗: "bg-lime-50/80 border-lime-200",
+    浇水: "bg-sky-50/80 border-sky-200",
+  };
+
+  const groupTitle: Record<string, string> = {
+    预防打药: "🛡️ 预防性打药任务",
+    治疗打药: "💊 治疗性打药任务",
+    施肥: "🌾 施肥任务",
+    浇水: "💧 浇水任务",
+    育苗: "🌱 育苗与定植",
+    物理防御: "🪤 物理防御",
+    停药: "⏰ 停药倒计时",
+    应急治疗: "🚨 应急处理",
+  };
+
+  return (
+    <div className="space-y-4">
+      {sortedTypes.map((type) => (
+        <div
+          key={type}
+          className={`rounded-lg border p-4 space-y-3 ${groupBg[type] || "bg-white/80 border-border/40"}`}
+        >
+          <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
+            {groupTitle[type] || type}
+            <span className="text-xs font-normal text-muted-foreground">
+              ({groups[type].length} 项)
+            </span>
+          </h4>
+          <div className="space-y-2">
+            {groups[type].map((task, i) => (
+              <div
+                key={i}
+                className="bg-white/90 rounded-md border border-border/30 p-3 space-y-1.5"
+              >
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-semibold text-foreground">
+                    {task.action}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">{task.crops}</p>
+                <p className="text-sm text-foreground leading-relaxed whitespace-pre-line">
+                  {task.detail}
+                </p>
+                {task.frequency && (
+                  <p className="text-xs text-primary font-medium flex items-center gap-1">
+                    <Calendar className="w-3 h-3" />
+                    频率：{task.frequency}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -337,9 +475,13 @@ function CropCard({ crop }: { crop: Crop }) {
   );
 }
 
-// ─── Calendar Month Card ───
+// ─── Calendar Month Card (v3 with visual summary) ───
 function CalendarMonthCard({ month }: { month: CalendarMonth }) {
-  const [open, setOpen] = useState(month.monthNum === 4 && month.month.includes("上旬"));
+  const [open, setOpen] = useState(
+    month.monthNum === 4 && month.month.includes("上旬"),
+  );
+  const [viewMode, setViewMode] = useState<"grouped" | "list">("grouped");
+
   const seasonColors: Record<
     string,
     { bg: string; border: string; badge: string }
@@ -410,6 +552,31 @@ function CalendarMonthCard({ month }: { month: CalendarMonth }) {
               {month.warning}
             </p>
           )}
+          {/* Mini stats preview when collapsed */}
+          {!open && month.summary && (
+            <div className="flex flex-wrap gap-2 mt-2">
+              {month.summary.sprayCount > 0 && (
+                <span className="text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">
+                  🛡️ {month.summary.sprayCount}打药
+                </span>
+              )}
+              {month.summary.fertCount > 0 && (
+                <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">
+                  🌾 {month.summary.fertCount}施肥
+                </span>
+              )}
+              {month.summary.waterCount > 0 && (
+                <span className="text-xs bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded">
+                  💧 {month.summary.waterCount}浇水
+                </span>
+              )}
+              {month.summary.otherCount > 0 && (
+                <span className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">
+                  📋 {month.summary.otherCount}其他
+                </span>
+              )}
+            </div>
+          )}
         </div>
         <ChevronDown
           className={`w-5 h-5 text-muted-foreground shrink-0 mt-2 transition-transform duration-300 ${open ? "rotate-180" : ""}`}
@@ -424,30 +591,66 @@ function CalendarMonthCard({ month }: { month: CalendarMonth }) {
             transition={{ duration: 0.3 }}
             className="overflow-hidden"
           >
-            <div className="px-5 pb-5 space-y-3">
-              {month.tasks.map((task, i) => (
-                <div
-                  key={i}
-                  className="bg-white/80 rounded-lg border border-border/40 p-4 space-y-2"
+            <div className="px-5 pb-5 space-y-4">
+              {/* Visual Summary */}
+              <PhaseSummary month={month} />
+
+              {/* View mode toggle */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setViewMode("grouped")}
+                  className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-all ${
+                    viewMode === "grouped"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "bg-muted/60 text-muted-foreground hover:bg-muted"
+                  }`}
                 >
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <TypeBadge type={task.type} />
-                    <span className="text-sm font-medium text-foreground">
-                      {task.action}
-                    </span>
-                  </div>
-                  <p className="text-sm text-muted-foreground">{task.crops}</p>
-                  <p className="text-sm text-foreground leading-relaxed whitespace-pre-line">
-                    {task.detail}
-                  </p>
-                  {task.frequency && (
-                    <p className="text-xs text-primary font-medium flex items-center gap-1">
-                      <Calendar className="w-3 h-3" />
-                      频率：{task.frequency}
-                    </p>
-                  )}
+                  按类型分组
+                </button>
+                <button
+                  onClick={() => setViewMode("list")}
+                  className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-all ${
+                    viewMode === "list"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "bg-muted/60 text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  列表视图
+                </button>
+              </div>
+
+              {/* Tasks */}
+              {viewMode === "grouped" ? (
+                <GroupedTasks tasks={month.tasks} />
+              ) : (
+                <div className="space-y-3">
+                  {month.tasks.map((task, i) => (
+                    <div
+                      key={i}
+                      className="bg-white/80 rounded-lg border border-border/40 p-4 space-y-2"
+                    >
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <TypeBadge type={task.type} />
+                        <span className="text-sm font-medium text-foreground">
+                          {task.action}
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {task.crops}
+                      </p>
+                      <p className="text-sm text-foreground leading-relaxed whitespace-pre-line">
+                        {task.detail}
+                      </p>
+                      {task.frequency && (
+                        <p className="text-xs text-primary font-medium flex items-center gap-1">
+                          <Calendar className="w-3 h-3" />
+                          频率：{task.frequency}
+                        </p>
+                      )}
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
           </motion.div>
         )}
@@ -503,27 +706,29 @@ function SeedlingCard({ guide }: { guide: SeedlingGuide }) {
                     <Thermometer className="w-3 h-3 inline mr-1" />
                     最低土温
                   </span>
-                  <span className="text-foreground text-xs font-medium">
+                  <span className="text-foreground text-xs font-semibold">
                     {guide.soilTemp}
                   </span>
                 </div>
                 <div className="bg-muted/50 rounded p-2">
                   <span className="text-xs text-muted-foreground block">
-                    株距/行距
+                    📏 株距
                   </span>
-                  <span className="text-foreground text-xs">
+                  <span className="text-foreground text-xs font-semibold">
                     {guide.spacing}
                   </span>
                 </div>
                 <div className="bg-muted/50 rounded p-2">
                   <span className="text-xs text-muted-foreground block">
-                    种植深度
+                    📐 种植深度
                   </span>
-                  <span className="text-foreground text-xs">{guide.depth}</span>
+                  <span className="text-foreground text-xs font-semibold">
+                    {guide.depth}
+                  </span>
                 </div>
                 <div className="bg-muted/50 rounded p-2">
                   <span className="text-xs text-muted-foreground block">
-                    炼苗要求
+                    🌡️ 炼苗
                   </span>
                   <span className="text-foreground text-xs">
                     {guide.hardenOff}
@@ -532,81 +737,7 @@ function SeedlingCard({ guide }: { guide: SeedlingGuide }) {
               </div>
               <div className="bg-green-50 border border-green-200 rounded p-2">
                 <p className="text-xs text-green-800">
-                  <span className="font-semibold">💡 小贴士：</span>
-                  {guide.tips}
-                </p>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
-  );
-}
-
-// ─── Watering Guide Card ───
-function WateringCard({ guide }: { guide: WateringGuide }) {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <motion.div
-      layout
-      className="bg-card rounded-lg border border-border/60 shadow-sm hover:shadow-md transition-shadow overflow-hidden border-l-4 border-l-sky-400"
-    >
-      <button
-        onClick={() => setOpen(!open)}
-        className="w-full text-left p-4 flex items-center gap-3"
-      >
-        <span className="text-3xl">{guide.emoji}</span>
-        <div className="flex-1">
-          <h3 className="font-semibold text-foreground">{guide.crop}</h3>
-          <span className="text-xs text-muted-foreground">
-            {guide.category}
-          </span>
-        </div>
-        <ChevronDown
-          className={`w-4 h-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
-        />
-      </button>
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25 }}
-            className="overflow-hidden"
-          >
-            <div className="px-4 pb-4 space-y-2 border-t border-border/40 pt-3">
-              <div className="grid grid-cols-1 gap-2">
-                <div className="bg-sky-50 rounded p-3">
-                  <span className="text-xs font-semibold text-sky-700 block mb-1">
-                    🌱 新植/幼苗期
-                  </span>
-                  <span className="text-foreground text-xs whitespace-pre-line">
-                    {guide.newPlant}
-                  </span>
-                </div>
-                <div className="bg-emerald-50 rounded p-3">
-                  <span className="text-xs font-semibold text-emerald-700 block mb-1">
-                    🌳 成熟期
-                  </span>
-                  <span className="text-foreground text-xs whitespace-pre-line">
-                    {guide.established}
-                  </span>
-                </div>
-                <div className="bg-muted/50 rounded p-3">
-                  <span className="text-xs font-semibold text-muted-foreground block mb-1">
-                    💧 浇水方法
-                  </span>
-                  <span className="text-foreground text-xs">
-                    {guide.method}
-                  </span>
-                </div>
-              </div>
-              <div className="bg-amber-50 border border-amber-200 rounded p-2">
-                <p className="text-xs text-amber-800">
-                  <span className="font-semibold">💡 注意：</span>
+                  <span className="font-semibold">小贴士：</span>
                   {guide.tips}
                 </p>
               </div>
@@ -678,7 +809,6 @@ export default function Home() {
     products: null,
     crops: null,
     seedling: null,
-    watering: null,
     safety: null,
   });
 
@@ -890,7 +1020,7 @@ export default function Home() {
                   月历时间表
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  按月份查看每种作物的施肥、打药、育苗和浇水计划
+                  按月份查看施肥、打药、浇水、育苗全部计划 — 点击展开查看详情
                 </p>
               </div>
             </div>
@@ -1119,40 +1249,6 @@ export default function Home() {
             {seedlingGuides.map((g, i) => (
               <FadeIn key={g.crop} delay={i * 0.05}>
                 <SeedlingCard guide={g} />
-              </FadeIn>
-            ))}
-          </div>
-        </section>
-
-        <Divider icon={<CloudRain className="w-5 h-5" />} />
-
-        {/* ─── Watering Guide Section ─── */}
-        <section
-          id="watering"
-          ref={(el) => {
-            sectionRefs.current.watering = el;
-          }}
-          className="scroll-mt-20"
-        >
-          <FadeIn>
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-lg bg-sky-100 flex items-center justify-center">
-                <CloudRain className="w-5 h-5 text-sky-700" />
-              </div>
-              <div>
-                <h2 className="font-display text-2xl font-bold text-foreground">
-                  浇水指南
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  新植期 vs 成熟期浇水量、方法和注意事项
-                </p>
-              </div>
-            </div>
-          </FadeIn>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {wateringGuides.map((g, i) => (
-              <FadeIn key={g.crop} delay={i * 0.05}>
-                <WateringCard guide={g} />
               </FadeIn>
             ))}
           </div>

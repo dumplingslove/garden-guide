@@ -47,7 +47,16 @@ export interface CalendarMonth {
   title: string;
   goal: string;
   warning?: string;
+  summary: PhaseSummary;
   tasks: CalendarTask[];
+}
+
+export interface PhaseSummary {
+  sprayCount: number;
+  fertCount: number;
+  waterCount: number;
+  otherCount: number;
+  keyActions: string[];  // 3-5 bullet points for quick visual overview
 }
 
 export interface CalendarTask {
@@ -609,6 +618,19 @@ export const calendar: CalendarMonth[] = [
     title: "🚨 现在！当前紧急任务",
     goal: "根据每棵植物的当前状态，立即执行最关键的操作",
     warning: "⚠️ 梨树和苹果树2号正在花期/花苞期，严禁喷杀虫剂！",
+    summary: {
+      sprayCount: 4,
+      fertCount: 3,
+      waterCount: 3,
+      otherCount: 3,
+      keyActions: [
+        "🌿 苹果树1号：立即喷 Immunox 防黑星病",
+        "🌸 苹果树2号/梨树：花期仅喷杀菌剂",
+        "🌱 果树施 Tree-tone 早春基肥",
+        "💧 新植果树每2-3天浇一次",
+        "🌾 蔬菜小苗开始炼苗",
+      ],
+    },
     tasks: [
       {
         crops: "🍎 苹果树1号（已长嫩叶）",
@@ -687,6 +709,27 @@ export const calendar: CalendarMonth[] = [
         detail: "在果树树干距地面30-60cm处缠绕 Catchmaster 粘带一圈；树下方圆1米范围撒布 Sluggo Plus 颗粒诱杀蠼螋。",
         frequency: "粘带整季保留，Sluggo每月补撒",
       },
+      {
+        crops: "🍎🍐 苹果树、梨树（新植1-3年）",
+        type: "浇水",
+        action: "新植果树浇水",
+        detail: "每2-3天浇一次，每次慢浇 3-5 加仑，确保水渗透到根球以下。早晨浇水最佳。\n成年果树：每周浇一次，每次 5-10 加仑，滤水线内慢浇。",
+        frequency: "新植每2-3天，成年每周",
+      },
+      {
+        crops: "🍇🫐 葡萄、蓝莓",
+        type: "浇水",
+        action: "浆果浇水",
+        detail: "葡萄：新植每2-3天浇 2-3 加仑，成年每周 3-5 加仑。\n蓝莓：新植每2天浇 1-2 加仑，成年每周 1-2 加仑。蓝莓根浅，少量多次。",
+        frequency: "新植每2-3天，成年每周",
+      },
+      {
+        crops: "🌿 蔬菜小苗（室内炼苗期）",
+        type: "浇水",
+        action: "炼苗期浇水",
+        detail: "室内育苗盆土保持湿润但不积水，每1-2天检查一次。\n炼苗期间逐渐减少浇水频率，让小苗适应户外环境。",
+        frequency: "每1-2天检查",
+      },
     ],
   },
   {
@@ -695,6 +738,19 @@ export const calendar: CalendarMonth[] = [
     season: "spring",
     title: "落花期至幼果期 / 蔬菜定植",
     goal: "全年最重要的一喷（保果），蔬菜定植后防病",
+    summary: {
+      sprayCount: 3,
+      fertCount: 3,
+      waterCount: 3,
+      otherCount: 2,
+      keyActions: [
+        "⭐ 落花后立即喷 Immunox+Deadbug 黄金保果喷雾",
+        "🌱 蔬菜定植到户外，浇透定根水",
+        "💧 新植苗每天浇水，2周后渐减",
+        "🌾 南瓜豆角直播到户外",
+        "🪤 果树 Tree-tone 缓释肥持续作用中",
+      ],
+    },
     tasks: [
       {
         crops: "🍎🍐 苹果、梨",
@@ -759,6 +815,27 @@ export const calendar: CalendarMonth[] = [
         detail: "定植/出苗后2-3周开始：\n方法A（Garden Feeder喷施器）：装入肥粉，接水管对着根部喷施，自动配比\n方法B（手动兑水）：1汤匙肥粉兑入1加仑(3.8L)水，每棵蔬菜浇灌约0.5-1加仑稀释液\n⚠️ 此肥为蔬菜专用(18-18-21)，不用于果树和葡萄",
         frequency: "每7-14天一次",
       },
+      {
+        crops: "🍎🍐 苹果、梨（幼果发育期）",
+        type: "浇水",
+        action: "果树浇水 — 幼果发育关键期",
+        detail: "新植果树：每2-3天浇 3-5 加仑。\n成年果树：每周浇 5-10 加仑，滤水线内慢浇。\n❗ 幼果发育期缺水会导致落果，确保土壤持续湿润。",
+        frequency: "新植每2-3天，成年每周",
+      },
+      {
+        crops: "🍅🌶️🍆🥬🎃🫘 新定植蔬菜",
+        type: "浇水",
+        action: "定植后浇水 — 缓苗期关键",
+        detail: "定植后立即浇透定根水（每株0.5-1加仑）。\n前2周：每天浇水，保持土壤湿润。\n2周后：逐渐减少到每2-3天一次。\n❗ 早晨浇水，避免叶面湿润过夜引发病害。",
+        frequency: "前2周每天，之后每2-3天",
+      },
+      {
+        crops: "🍇🫐 葡萄、蓝莓",
+        type: "浇水",
+        action: "浆果花期/幼果期浇水",
+        detail: "葡萄：新植每2-3天 2-3 加仑，成年每周 3-5 加仑。\n蓝莓：新植每2天 1-2 加仑，成年每周 1-2 加仑。\n蓝莓花期缺水会严重影响坐果率。",
+        frequency: "新植每2-3天，成年每周",
+      },
     ],
   },
   {
@@ -767,6 +844,19 @@ export const calendar: CalendarMonth[] = [
     season: "summer",
     title: "夏季生长旺盛期 / 果实膨大",
     goal: "维持防线，促果追肥，应对突发虫害",
+    summary: {
+      sprayCount: 3,
+      fertCount: 4,
+      waterCount: 1,
+      otherCount: 2,
+      keyActions: [
+        "🛡️ 每14天喷 Immunox 维持防线",
+        "🍅 番茄施促果肥（含钙防烂底）",
+        "💧 高温天所有作物加量浇水",
+        "⚠️ 突发虫害局部喷 Sevin 应急",
+        "❌ 7月中旬后果树停施氮肥",
+      ],
+    },
     tasks: [
       {
         crops: "🍎🍐🍇 苹果、梨、葡萄",
@@ -853,6 +943,19 @@ export const calendar: CalendarMonth[] = [
     season: "summer",
     title: "采收季 / 晚夏管理",
     goal: "严格遵守停药期，确保食品安全",
+    summary: {
+      sprayCount: 0,
+      fertCount: 0,
+      waterCount: 2,
+      otherCount: 4,
+      keyActions: [
+        "⏰ 苹果/梨：采收前14天停 Immunox/Sevin",
+        "⏰ 葡萄：采收前14天停 Immunox",
+        "💧 葡萄转色后减少浇水促糖分",
+        "💧 其他作物维持正常浇水",
+        "🧹 采收前用清水冲洗果实和蔬菜",
+      ],
+    },
     tasks: [
       {
         crops: "🍎🍐 苹果、梨",
@@ -882,6 +985,20 @@ export const calendar: CalendarMonth[] = [
         detail: "采收前1天：停用 Deadbug Brew 和 Sevin\n铜皂和印楝油（有机认证）可用至采收当天\nSluggo Plus：采收前3天停用\n采收前用清水冲洗蔬菜",
         frequency: "严格按PHI执行",
       },
+      {
+        crops: "🍇 葡萄（转色期）",
+        type: "浇水",
+        action: "葡萄转色后减少浇水",
+        detail: "葡萄开始转色后，减少浇水量至正常的一半，促进糖分积累。\n但不要完全断水，保持土壤微湿。",
+        frequency: "每周浇水量减半",
+      },
+      {
+        crops: "🍎🍐🫐🍅🌶️🍆 其他作物",
+        type: "浇水",
+        action: "维持正常浇水",
+        detail: "苹果/梨：每周 5-10 加仑深浇。\n蓝莓：每周 1-2 加仑，保持湿润。\n蔬菜：每2-3天浇一次，采收前保持土壤均匀湿润防裂果。",
+        frequency: "果树每周，蔬菜每2-3天",
+      },
     ],
   },
   {
@@ -890,6 +1007,19 @@ export const calendar: CalendarMonth[] = [
     season: "autumn",
     title: "秋季收尾 / 来年准备",
     goal: "清理残枝落叶，施秋季基肥，为来年打好基础",
+    summary: {
+      sprayCount: 1,
+      fertCount: 2,
+      waterCount: 1,
+      otherCount: 2,
+      keyActions: [
+        "🍂 落叶后喷铜皂清园",
+        "🌾 施 Tree-tone 秋季基肥（第2次）",
+        "💧 冻前深浇一次越冬水",
+        "🧹 清理菜地残株和病叶",
+        "🌹 玫瑰最后一次灌根+覆盖越冬",
+      ],
+    },
     tasks: [
       {
         crops: "🍎🍐🍇🫐 全线果树/浆果",
@@ -918,6 +1048,13 @@ export const calendar: CalendarMonth[] = [
         action: "秋季修剪 + 最后一次灌根",
         detail: "霜冻前进行轻度修剪。最后一次 BioAdvanced 灌根（3 oz/1加仑水，每株0.5-1加仑稀释液）。根部覆盖3-4英寸覆盖物保暖越冬。",
         frequency: "一次性操作",
+      },
+      {
+        crops: "🍎🍐🍇🫐 所有果树/浆果",
+        type: "浇水",
+        action: "冻前深浇越冬水",
+        detail: "在地面冻结前，给所有果树和浆果深浇一次越冬水：\n苹果/梨：10-15 加仑，滤水线内慢浇 20-30 分钟\n葡萄：5-8 加仑\n蓝莓：3-5 加仑\n越冬水帮助根系在冬季保持水分，减少冻害。",
+        frequency: "冻前一次",
       },
     ],
   },
