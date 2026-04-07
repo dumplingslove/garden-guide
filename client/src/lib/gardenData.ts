@@ -18,6 +18,7 @@ export interface Product {
   amazonRating: string;
   keyWarning?: string;
   icon: string;
+  amazonUrl?: string;
 }
 
 export interface PlantStatus {
@@ -104,6 +105,7 @@ export const products: Product[] = [
     amazonRating: "4.5/5 (96%推荐)",
     keyWarning: "配比必须按标签1.5 fl oz/gal，非1.25",
     icon: "🛡️",
+    amazonUrl: "https://www.amazon.com/Spectracide-Multi-Purpose-Fungicide-16-Ounce-Concentrate/dp/B0035H0RA8",
   },
   {
     id: "coppersoap",
@@ -119,6 +121,7 @@ export const products: Product[] = [
     amazonRating: "4.4/5",
     keyWarning: "比Liqui-Cop更温和，药害风险更低。喷后必须清洗喷雾器！",
     icon: "🧪",
+    amazonUrl: "https://www.amazon.com/Bonide-811-Copper-Fungicide-473ML/dp/B00BSULSHA",
   },
   {
     id: "neemoil",
@@ -134,6 +137,7 @@ export const products: Product[] = [
     amazonRating: "4.3/5",
     keyWarning: "低温(<60°F)会凝固，需温水预溶。不适合休眠期高浓度清园。30天内勿与含硫药剂混用。",
     icon: "🌿",
+    amazonUrl: "https://www.amazon.com/Bonide-Captain-Concentrate-Disease-Gardening/dp/B0BQ7L18NW",
   },
   {
     id: "deadbug",
@@ -149,6 +153,7 @@ export const products: Product[] = [
     amazonRating: "4.8/5",
     keyWarning: "施用后3小时内对蜜蜂有毒！花期禁用",
     icon: "🐛",
+    amazonUrl: "https://www.amazon.com/Bonide-704725-Captain-Concentrate-1-Quart/dp/B001VJ83LW",
   },
   {
     id: "sevin",
@@ -164,6 +169,7 @@ export const products: Product[] = [
     amazonRating: "4.4/5 (1,827评价)",
     keyWarning: "对蜜蜂高毒，花期严禁使用！仅限应急",
     icon: "⚡",
+    amazonUrl: "https://www.amazon.com/Sevin-100530124-GardenTech-Insect-Concentrate/dp/B07DXJ7GTW",
   },
   {
     id: "sluggo",
@@ -178,6 +184,7 @@ export const products: Product[] = [
     phi: "3天",
     amazonRating: "4.6/5 (1,963评价)",
     icon: "🐌",
+    amazonUrl: "https://www.amazon.com/Sluggo-Plus-Insect-Snail-Killer/dp/B0FM8N92XC",
   },
   {
     id: "bioadvanced",
@@ -193,6 +200,7 @@ export const products: Product[] = [
     amazonRating: "5/5",
     keyWarning: "⚠️ 严禁用于果树和蔬菜！含吡虫啉，对蜜蜂高毒！",
     icon: "🌹",
+    amazonUrl: "https://www.amazon.com/BioAdvanced-701260B-32Oz-Rose-Concentrate/dp/B000VS98FE",
   },
   {
     id: "hollytone",
@@ -207,6 +215,7 @@ export const products: Product[] = [
     phi: "有机肥，无PHI限制",
     amazonRating: "4.8/5 (1,492评价, 95%推荐)",
     icon: "🫐",
+    amazonUrl: "https://www.amazon.com/Espoma-Holly-Tone-4-3-4-Pounds-Discontinued/dp/B08H58JWMC",
   },
   {
     id: "treetone",
@@ -222,6 +231,7 @@ export const products: Product[] = [
     amazonRating: "4.7/5 (数千评价，50年经典)",
     keyWarning: "颗粒缓释肥，不需要兑水溶解！直接撒在土壤表面或埋入土中，施后浇透水即可。",
     icon: "🌳",
+    amazonUrl: "https://www.amazon.com/Espoma-company-6-3-2-Tree-Natural/dp/B00F2QK4C6",
   },
   {
     id: "kellogg",
@@ -236,6 +246,7 @@ export const products: Product[] = [
     phi: "有机肥，无PHI限制",
     amazonRating: "4.5/5",
     icon: "🌱",
+    amazonUrl: "https://www.amazon.com/Kellogg-Supply-8644-Fruit-Fertilizer/dp/B00FFY9336",
   },
   {
     id: "vigoro",
@@ -250,6 +261,7 @@ export const products: Product[] = [
     phi: "化肥，无PHI限制",
     amazonRating: "4.5/5",
     icon: "🍅",
+    amazonUrl: "https://www.amazon.com/Pennington-100504561/dp/B008ZVMK6S",
   },
   {
     id: "miraclegro",
@@ -264,6 +276,7 @@ export const products: Product[] = [
     phi: "化肥，无PHI限制",
     amazonRating: "4.7/5",
     icon: "💧",
+    amazonUrl: "https://www.amazon.com/Miracle-Gro-Water-Soluble-Plant-Vegetables/dp/B07L918M91",
   },
   {
     id: "catchmaster",
@@ -278,6 +291,7 @@ export const products: Product[] = [
     phi: "无",
     amazonRating: "4.3/5",
     icon: "🪤",
+    amazonUrl: "https://www.amazon.com/Catchmaster-Banding-Insect-Adhesive-Barrier/dp/B08563R81S",
   },
 ];
 

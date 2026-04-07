@@ -31,6 +31,7 @@ import {
   Sun,
   Check,
   RotateCcw,
+  ExternalLink,
 } from "lucide-react";
 import {
   products,
@@ -410,6 +411,17 @@ function ProductCard({ product }: { product: Product }) {
                     {product.keyWarning}
                   </span>
                 </div>
+              )}
+              {product.amazonUrl && (
+                <a
+                  href={product.amazonUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold rounded-lg transition-colors shadow-sm"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  Amazon 购买
+                </a>
               )}
             </div>
           </motion.div>
