@@ -803,10 +803,17 @@ function Divider({ icon }: { icon: React.ReactNode }) {
 }
 
 // ─── Main Home Page ───
+// ─── Global PWA prompt capture (before any component mounts) ───
+let _deferredInstallPrompt: any = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  _deferredInstallPrompt = e;
+});
+
 // ─── PWA Install Prompt ───
 function InstallBanner() {
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [showIOSGuide, setShowIOSGuide] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(_deferredInstallPrompt);
+  const [showGuide, setShowGuide] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
 
@@ -815,17 +822,25 @@ function InstallBanner() {
   const isMobile = isIOS || isAndroid;
 
   useEffect(() => {
-    // Check if already installed
+    // Check if already installed as standalone
     if (window.matchMedia('(display-mode: standalone)').matches) {
       setIsInstalled(true);
       return;
     }
 
+    // Listen for late-arriving beforeinstallprompt
     const handler = (e: Event) => {
       e.preventDefault();
+      _deferredInstallPrompt = e;
       setDeferredPrompt(e);
     };
     window.addEventListener('beforeinstallprompt', handler);
+
+    // Also check if global already captured it
+    if (_deferredInstallPrompt) {
+      setDeferredPrompt(_deferredInstallPrompt);
+    }
+
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
 
@@ -834,12 +849,19 @@ function InstallBanner() {
 
   const handleInstall = async () => {
     if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') setDismissed(true);
-      setDeferredPrompt(null);
-    } else if (isIOS) {
-      setShowIOSGuide(true);
+      try {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') setDismissed(true);
+        setDeferredPrompt(null);
+        _deferredInstallPrompt = null;
+      } catch {
+        // prompt() failed, show manual guide
+        setShowGuide(true);
+      }
+    } else {
+      // No deferred prompt available, show manual guide
+      setShowGuide(true);
     }
   };
 
@@ -872,15 +894,15 @@ function InstallBanner() {
         </button>
       </motion.div>
 
-      {/* iOS Safari Guide Modal */}
+      {/* Manual Install Guide Modal (iOS Safari / Android Chrome fallback) */}
       <AnimatePresence>
-        {showIOSGuide && (
+        {showGuide && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[70] bg-black/50 flex items-end justify-center p-4"
-            onClick={() => setShowIOSGuide(false)}
+            onClick={() => setShowGuide(false)}
           >
             <motion.div
               initial={{ y: 100, opacity: 0 }}
@@ -889,23 +911,45 @@ function InstallBanner() {
               className="bg-white rounded-2xl p-6 w-full max-w-sm space-y-4"
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className="text-lg font-bold text-foreground text-center">在 iPhone 上安装</h3>
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-sky-100 flex items-center justify-center text-sm font-bold text-sky-700">1</div>
-                  <p className="text-sm text-foreground">点击底部 Safari 的 <Share className="w-4 h-4 inline text-sky-600" /> <strong>分享</strong>按钮</p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-sky-100 flex items-center justify-center text-sm font-bold text-sky-700">2</div>
-                  <p className="text-sm text-foreground">向下滑动，选择 <strong>"添加到主屏幕"</strong></p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-sky-100 flex items-center justify-center text-sm font-bold text-sky-700">3</div>
-                  <p className="text-sm text-foreground">点击右上角 <strong>"添加"</strong> 即可完成</p>
-                </div>
-              </div>
+              {isIOS ? (
+                <>
+                  <h3 className="text-lg font-bold text-foreground text-center">在 iPhone 上安装</h3>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-sky-100 flex items-center justify-center text-sm font-bold text-sky-700">1</div>
+                      <p className="text-sm text-foreground">点击底部 Safari 的 <Share className="w-4 h-4 inline text-sky-600" /> <strong>分享</strong>按钮</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-sky-100 flex items-center justify-center text-sm font-bold text-sky-700">2</div>
+                      <p className="text-sm text-foreground">向下滑动，选择 <strong>"添加到主屏幕"</strong></p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-sky-100 flex items-center justify-center text-sm font-bold text-sky-700">3</div>
+                      <p className="text-sm text-foreground">点击右上角 <strong>"添加"</strong> 即可完成</p>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h3 className="text-lg font-bold text-foreground text-center">在 Android 上安装</h3>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-sm font-bold text-emerald-700">1</div>
+                      <p className="text-sm text-foreground">点击 Chrome 右上角 <strong>⋮ 菜单</strong>按钮</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-sm font-bold text-emerald-700">2</div>
+                      <p className="text-sm text-foreground">选择 <strong>"添加到主屏幕"</strong> 或 <strong>"安装应用"</strong></p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-sm font-bold text-emerald-700">3</div>
+                      <p className="text-sm text-foreground">点击 <strong>"安装"</strong> 确认即可</p>
+                    </div>
+                  </div>
+                </>
+              )}
               <button
-                onClick={() => setShowIOSGuide(false)}
+                onClick={() => setShowGuide(false)}
                 className="w-full bg-primary text-primary-foreground py-2.5 rounded-lg text-sm font-medium"
               >
                 我知道了
