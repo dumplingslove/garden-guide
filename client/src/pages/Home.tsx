@@ -28,6 +28,9 @@ import {
   Download,
   Share,
   Smartphone,
+  Sun,
+  Check,
+  RotateCcw,
 } from "lucide-react";
 import {
   products,
@@ -37,6 +40,8 @@ import {
   plantStatus,
   seedlingGuides,
 } from "@/lib/gardenData";
+import { indoorPlants } from "@/lib/indoorPlants";
+import type { IndoorPlant } from "@/lib/indoorPlants";
 import type {
   CalendarMonth,
   CalendarTask,
@@ -55,7 +60,8 @@ type Section =
   | "products"
   | "crops"
   | "seedling"
-  | "safety";
+  | "safety"
+  | "plants";
 
 const NAV_ITEMS: { id: Section; label: string; icon: React.ReactNode }[] = [
   { id: "status", label: "当前状态", icon: <Zap className="w-4 h-4" /> },
@@ -64,6 +70,7 @@ const NAV_ITEMS: { id: Section; label: string; icon: React.ReactNode }[] = [
   { id: "crops", label: "作物管理", icon: <Leaf className="w-4 h-4" /> },
   { id: "seedling", label: "育苗", icon: <Sprout className="w-4 h-4" /> },
   { id: "safety", label: "安全", icon: <Shield className="w-4 h-4" /> },
+  { id: "plants", label: "室内绿植", icon: <TreePine className="w-4 h-4" /> },
 ];
 
 // ─── Fade-in animation wrapper ───
@@ -175,7 +182,7 @@ function PhaseSummary({ month }: { month: CalendarMonth }) {
 }
 
 // ─── Grouped Task View ───
-function GroupedTasks({ tasks }: { tasks: CalendarTask[] }) {
+function GroupedTasks({ tasks, checklist, phasePrefix }: { tasks: CalendarTask[]; checklist?: ReturnType<typeof useChecklist>; phasePrefix?: string }) {
   // Group tasks by type
   const groups: Record<string, CalendarTask[]> = {};
   const typeOrder = ["预防打药", "治疗打药", "应急治疗", "施肥", "浇水", "育苗", "物理防御", "停药"];
@@ -223,13 +230,26 @@ function GroupedTasks({ tasks }: { tasks: CalendarTask[] }) {
             </span>
           </h4>
           <div className="space-y-2">
-            {groups[type].map((task, i) => (
+            {groups[type].map((task, i) => {
+              // Find original index in full tasks array for checklist key
+              const origIdx = tasks.indexOf(task);
+              const taskKey = phasePrefix ? `${phasePrefix}${origIdx}` : '';
+              const isDone = checklist && taskKey ? !!checklist.checked[taskKey] : false;
+              return (
               <div
                 key={i}
-                className="bg-white/90 rounded-md border border-border/30 p-3 space-y-1.5"
+                className={`rounded-md border p-3 space-y-1.5 transition-all ${isDone ? 'bg-green-50/60 border-green-300 opacity-75' : 'bg-white/90 border-border/30'}`}
               >
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm font-semibold text-foreground">
+                  {checklist && taskKey && (
+                    <button
+                      onClick={() => checklist.toggle(taskKey)}
+                      className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${isDone ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300 hover:border-green-400'}`}
+                    >
+                      {isDone && <Check className="w-3 h-3" />}
+                    </button>
+                  )}
+                  <span className={`text-sm font-semibold ${isDone ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
                     {task.action}
                   </span>
                 </div>
@@ -244,7 +264,8 @@ function GroupedTasks({ tasks }: { tasks: CalendarTask[] }) {
                   </p>
                 )}
               </div>
-            ))}
+            );
+            })}
           </div>
         </div>
       ))}
@@ -253,14 +274,22 @@ function GroupedTasks({ tasks }: { tasks: CalendarTask[] }) {
 }
 
 // ─── Plant Status Card ───
-function PlantStatusCard({ plant }: { plant: PlantStatus }) {
+function PlantStatusCard({ plant, isChecked, onToggle }: { plant: PlantStatus; isChecked: boolean; onToggle: () => void }) {
   return (
     <motion.div
       layout
-      className="bg-white rounded-xl border-2 border-amber-200 shadow-md overflow-hidden"
+      className={`rounded-xl border-2 shadow-md overflow-hidden transition-all ${isChecked ? 'bg-green-50/60 border-green-300 opacity-75' : 'bg-white border-amber-200'}`}
     >
       <div className="p-4">
         <div className="flex items-center gap-3 mb-3">
+          <button
+            onClick={onToggle}
+            className={`w-6 h-6 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${
+              isChecked ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300 hover:border-green-400'
+            }`}
+          >
+            {isChecked && <Check className="w-4 h-4" />}
+          </button>
           <span className="text-3xl">{plant.emoji}</span>
           <div>
             <h3 className="font-semibold text-foreground">{plant.name}</h3>
@@ -479,10 +508,13 @@ function CropCard({ crop }: { crop: Crop }) {
 }
 
 // ─── Calendar Month Card (v3 with visual summary) ───
-function CalendarMonthCard({ month }: { month: CalendarMonth }) {
+function CalendarMonthCard({ month, checklist }: { month: CalendarMonth; checklist: ReturnType<typeof useChecklist> }) {
   const [open, setOpen] = useState(
     month.monthNum === 4 && month.month.includes("上旬"),
   );
+  const phasePrefix = `cal-${month.month}-`;
+  const phaseTasks = month.tasks;
+  const phaseCheckedCount = phaseTasks.filter((_, i) => checklist.checked[`${phasePrefix}${i}`]).length;
   const [viewMode, setViewMode] = useState<"grouped" | "list">("grouped");
 
   const seasonColors: Record<
@@ -598,6 +630,32 @@ function CalendarMonthCard({ month }: { month: CalendarMonth }) {
               {/* Visual Summary */}
               <PhaseSummary month={month} />
 
+              {/* Phase progress */}
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-green-500 rounded-full transition-all duration-500"
+                    style={{ width: `${phaseTasks.length > 0 ? (phaseCheckedCount / phaseTasks.length) * 100 : 0}%` }}
+                  />
+                </div>
+                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                  {phaseCheckedCount}/{phaseTasks.length}
+                </span>
+                {phaseCheckedCount > 0 && (
+                  <button
+                    onClick={() => {
+                      phaseTasks.forEach((_, i) => {
+                        const key = `${phasePrefix}${i}`;
+                        if (checklist.checked[key]) checklist.toggle(key);
+                      });
+                    }}
+                    className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
+                  >
+                    <RotateCcw className="w-3 h-3" /> 重置
+                  </button>
+                )}
+              </div>
+
               {/* View mode toggle */}
               <div className="flex items-center gap-2">
                 <button
@@ -624,34 +682,48 @@ function CalendarMonthCard({ month }: { month: CalendarMonth }) {
 
               {/* Tasks */}
               {viewMode === "grouped" ? (
-                <GroupedTasks tasks={month.tasks} />
+                <GroupedTasks tasks={month.tasks} checklist={checklist} phasePrefix={phasePrefix} />
               ) : (
                 <div className="space-y-3">
-                  {month.tasks.map((task, i) => (
-                    <div
-                      key={i}
-                      className="bg-white/80 rounded-lg border border-border/40 p-4 space-y-2"
-                    >
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <TypeBadge type={task.type} />
-                        <span className="text-sm font-medium text-foreground">
-                          {task.action}
-                        </span>
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        {task.crops}
-                      </p>
-                      <p className="text-sm text-foreground leading-relaxed whitespace-pre-line">
-                        {task.detail}
-                      </p>
-                      {task.frequency && (
-                        <p className="text-xs text-primary font-medium flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
-                          频率：{task.frequency}
+                  {month.tasks.map((task, i) => {
+                    const taskKey = `${phasePrefix}${i}`;
+                    const isDone = !!checklist.checked[taskKey];
+                    return (
+                      <div
+                        key={i}
+                        className={`rounded-lg border p-4 space-y-2 transition-all ${
+                          isDone ? 'bg-green-50/60 border-green-300 opacity-75' : 'bg-white/80 border-border/40'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <button
+                            onClick={() => checklist.toggle(taskKey)}
+                            className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${
+                              isDone ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300 hover:border-green-400'
+                            }`}
+                          >
+                            {isDone && <Check className="w-3 h-3" />}
+                          </button>
+                          <TypeBadge type={task.type} />
+                          <span className={`text-sm font-medium ${isDone ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+                            {task.action}
+                          </span>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {task.crops}
                         </p>
-                      )}
-                    </div>
-                  ))}
+                        <p className="text-sm text-foreground leading-relaxed whitespace-pre-line">
+                          {task.detail}
+                        </p>
+                        {task.frequency && (
+                          <p className="text-xs text-primary font-medium flex items-center gap-1">
+                            <Calendar className="w-3 h-3" />
+                            频率：{task.frequency}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -798,6 +870,94 @@ function Divider({ icon }: { icon: React.ReactNode }) {
       <div className="flex-1 h-px bg-border" />
       <span className="text-primary/40">{icon}</span>
       <div className="flex-1 h-px bg-border" />
+    </div>
+  );
+}
+
+// ─── Checklist Hook (localStorage persistence) ───
+function useChecklist(storageKey: string) {
+  const [checked, setChecked] = useState<Record<string, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const toggle = (id: string) => {
+    setChecked((prev) => {
+      const next = { ...prev, [id]: !prev[id] };
+      localStorage.setItem(storageKey, JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const reset = () => {
+    setChecked({});
+    localStorage.removeItem(storageKey);
+  };
+
+  const count = Object.values(checked).filter(Boolean).length;
+
+  return { checked, toggle, reset, count };
+}
+
+// ─── Indoor Plant Card ───
+function IndoorPlantCard({ plant }: { plant: IndoorPlant }) {
+  const difficultyConfig = {
+    easy: { label: "好养", color: "bg-green-100 text-green-800 border-green-200" },
+    medium: { label: "中等", color: "bg-amber-100 text-amber-800 border-amber-200" },
+    hard: { label: "较难", color: "bg-red-100 text-red-800 border-red-200" },
+  };
+  const diff = difficultyConfig[plant.difficulty];
+
+  return (
+    <div className="bg-card rounded-xl border border-border/60 shadow-sm hover:shadow-md transition-shadow overflow-hidden p-5">
+      <div className="flex items-center gap-3 mb-4">
+        <span className="text-3xl">{plant.emoji}</span>
+        <div>
+          <h3 className="font-semibold text-lg text-foreground">{plant.name}</h3>
+          <span className={`text-xs px-2 py-0.5 rounded border ${diff.color}`}>
+            {diff.label}
+          </span>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+        <div>
+          <p className="text-xs font-semibold text-amber-700 mb-1 flex items-center gap-1">
+            <Sun className="w-3 h-3" /> 光照
+          </p>
+          <p className="text-foreground text-xs leading-relaxed whitespace-pre-line">{plant.light}</p>
+        </div>
+        <div>
+          <p className="text-xs font-semibold text-sky-700 mb-1 flex items-center gap-1">
+            <Droplets className="w-3 h-3" /> 浇水
+          </p>
+          <p className="text-foreground text-xs leading-relaxed whitespace-pre-line">{plant.water}</p>
+        </div>
+        <div>
+          <p className="text-xs font-semibold text-green-700 mb-1">🌿 施肥</p>
+          <p className="text-foreground text-xs leading-relaxed whitespace-pre-line">{plant.fert}</p>
+        </div>
+        <div>
+          <p className="text-xs font-semibold text-red-700 mb-1">🌡️ 温度</p>
+          <p className="text-foreground text-xs leading-relaxed whitespace-pre-line">{plant.temp}</p>
+        </div>
+        <div>
+          <p className="text-xs font-semibold text-amber-800 mb-1">🌱 土壤</p>
+          <p className="text-foreground text-xs leading-relaxed whitespace-pre-line">{plant.soil}</p>
+        </div>
+        <div>
+          <p className="text-xs font-semibold text-orange-700 mb-1">⚠️ 常见问题</p>
+          <p className="text-foreground text-xs leading-relaxed whitespace-pre-line">{plant.problems}</p>
+        </div>
+      </div>
+      <div className="mt-3 bg-green-50 border border-green-200 rounded-lg p-2.5">
+        <p className="text-xs text-green-800">
+          <span className="font-semibold">💡</span> {plant.tips}
+        </p>
+      </div>
     </div>
   );
 }
@@ -972,7 +1132,12 @@ export default function Home() {
     crops: null,
     seedling: null,
     safety: null,
+    plants: null,
   });
+
+  // Checklist state
+  const statusChecklist = useChecklist('garden-status-checklist');
+  const calendarChecklist = useChecklist('garden-calendar-checklist');
 
   const scrollToSection = (id: Section) => {
     setActiveSection(id);
@@ -1059,9 +1224,9 @@ export default function Home() {
               style={{ color: "var(--color-earth)" }}
             >
               涵盖苹果、梨、葡萄、蓝莓、番茄、辣椒、茄子、芹菜、南瓜、豆角、玫瑰共
-              11 种作物。
+              11 种作物 + 10 种室内绿植。
               <br />
-              含育苗定植、浇水管理、预防性打药、施肥追肥完整方案。
+              含育苗定植、浇水管理、预防性打药、施肥追肥完整方案。支持任务打勾记录进度。
             </p>
           </motion.div>
         </div>
@@ -1156,10 +1321,34 @@ export default function Home() {
               </div>
             </div>
           </FadeIn>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mt-4">
+          {/* Progress bar */}
+          <div className="flex items-center gap-3 mt-3 mb-2">
+            <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-green-500 rounded-full transition-all duration-500"
+                style={{ width: `${(statusChecklist.count / plantStatus.length) * 100}%` }}
+              />
+            </div>
+            <span className="text-xs text-muted-foreground whitespace-nowrap">
+              {statusChecklist.count}/{plantStatus.length} 已完成
+            </span>
+            {statusChecklist.count > 0 && (
+              <button
+                onClick={statusChecklist.reset}
+                className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 px-2 py-1 rounded border border-border/60 hover:bg-muted transition-colors"
+              >
+                <RotateCcw className="w-3 h-3" /> 重置
+              </button>
+            )}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mt-2">
             {plantStatus.map((plant, i) => (
               <FadeIn key={plant.id} delay={i * 0.05}>
-                <PlantStatusCard plant={plant} />
+                <PlantStatusCard
+                  plant={plant}
+                  isChecked={!!statusChecklist.checked[plant.id]}
+                  onToggle={() => statusChecklist.toggle(plant.id)}
+                />
               </FadeIn>
             ))}
           </div>
@@ -1193,7 +1382,7 @@ export default function Home() {
           <div className="space-y-4">
             {calendar.map((month, i) => (
               <FadeIn key={month.month} delay={i * 0.05}>
-                <CalendarMonthCard month={month} />
+                <CalendarMonthCard month={month} checklist={calendarChecklist} />
               </FadeIn>
             ))}
           </div>
@@ -1448,6 +1637,40 @@ export default function Home() {
             {safetyRules.map((rule, i) => (
               <FadeIn key={i} delay={i * 0.05}>
                 <SafetyCard rule={rule} />
+              </FadeIn>
+            ))}
+          </div>
+        </section>
+
+        <Divider icon={<TreePine className="w-5 h-5" />} />
+
+        {/* ─── Indoor Plants Section ─── */}
+        <section
+          id="plants"
+          ref={(el) => {
+            sectionRefs.current.plants = el;
+          }}
+          className="scroll-mt-20"
+        >
+          <FadeIn>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
+                <TreePine className="w-5 h-5 text-green-700" />
+              </div>
+              <div>
+                <h2 className="font-display text-2xl font-bold text-foreground">
+                  室内绿植养护
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  常见家养绿色植物的浇水、光照、施肥指南
+                </p>
+              </div>
+            </div>
+          </FadeIn>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {indoorPlants.map((plant, i) => (
+              <FadeIn key={plant.name} delay={i * 0.05}>
+                <IndoorPlantCard plant={plant} />
               </FadeIn>
             ))}
           </div>
