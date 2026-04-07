@@ -25,6 +25,9 @@ import {
   Zap,
   CloudRain,
   Thermometer,
+  Download,
+  Share,
+  Smartphone,
 } from "lucide-react";
 import {
   products,
@@ -800,6 +803,121 @@ function Divider({ icon }: { icon: React.ReactNode }) {
 }
 
 // ─── Main Home Page ───
+// ─── PWA Install Prompt ───
+function InstallBanner() {
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showIOSGuide, setShowIOSGuide] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
+  const [isInstalled, setIsInstalled] = useState(false);
+
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const isAndroid = /Android/.test(navigator.userAgent);
+  const isMobile = isIOS || isAndroid;
+
+  useEffect(() => {
+    // Check if already installed
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      setIsInstalled(true);
+      return;
+    }
+
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  if (isInstalled || dismissed) return null;
+  if (!isMobile) return null;
+
+  const handleInstall = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') setDismissed(true);
+      setDeferredPrompt(null);
+    } else if (isIOS) {
+      setShowIOSGuide(true);
+    }
+  };
+
+  return (
+    <>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="fixed bottom-4 left-4 right-4 z-[60] bg-white rounded-2xl shadow-2xl border border-border/60 p-4 flex items-center gap-3"
+      >
+        <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
+          <Smartphone className="w-6 h-6 text-emerald-700" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold text-foreground">安装为 App</p>
+          <p className="text-xs text-muted-foreground">添加到主屏幕，离线也能查看</p>
+        </div>
+        <button
+          onClick={handleInstall}
+          className="shrink-0 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity flex items-center gap-1.5"
+        >
+          <Download className="w-4 h-4" />
+          安装
+        </button>
+        <button
+          onClick={() => setDismissed(true)}
+          className="shrink-0 p-1.5 rounded-lg hover:bg-muted text-muted-foreground"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </motion.div>
+
+      {/* iOS Safari Guide Modal */}
+      <AnimatePresence>
+        {showIOSGuide && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[70] bg-black/50 flex items-end justify-center p-4"
+            onClick={() => setShowIOSGuide(false)}
+          >
+            <motion.div
+              initial={{ y: 100, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 100, opacity: 0 }}
+              className="bg-white rounded-2xl p-6 w-full max-w-sm space-y-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-bold text-foreground text-center">在 iPhone 上安装</h3>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-sky-100 flex items-center justify-center text-sm font-bold text-sky-700">1</div>
+                  <p className="text-sm text-foreground">点击底部 Safari 的 <Share className="w-4 h-4 inline text-sky-600" /> <strong>分享</strong>按钮</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-sky-100 flex items-center justify-center text-sm font-bold text-sky-700">2</div>
+                  <p className="text-sm text-foreground">向下滑动，选择 <strong>"添加到主屏幕"</strong></p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-sky-100 flex items-center justify-center text-sm font-bold text-sky-700">3</div>
+                  <p className="text-sm text-foreground">点击右上角 <strong>"添加"</strong> 即可完成</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowIOSGuide(false)}
+                className="w-full bg-primary text-primary-foreground py-2.5 rounded-lg text-sm font-medium"
+              >
+                我知道了
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
+  );
+}
+
 export default function Home() {
   const [activeSection, setActiveSection] = useState<Section>("status");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -857,6 +975,9 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* ─── PWA Install Banner ─── */}
+      <InstallBanner />
+
       {/* ─── Hero Banner ─── */}
       <header className="relative overflow-hidden">
         <div className="absolute inset-0">

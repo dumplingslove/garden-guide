@@ -3,16 +3,36 @@
   "short_name": "果园指南",
   "description": "全年施肥、打药、浇水、育苗月历指南",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#FAF6F0",
   "theme_color": "#5B7A3A",
   "orientation": "portrait-primary",
+  "id": "/",
   "icons": [
+    {
+      "src": "https://d2xsxph8kpxj0f.cloudfront.net/310519663328359702/EtuGgEXh3NhqYYxcDZkFms/app-icon-192_1eedc501.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
     {
       "src": "https://d2xsxph8kpxj0f.cloudfront.net/310519663328359702/EtuGgEXh3NhqYYxcDZkFms/app-icon-512-jG9oPLaexxmPSf5pHoKgKa.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "https://d2xsxph8kpxj0f.cloudfront.net/310519663328359702/EtuGgEXh3NhqYYxcDZkFms/app-icon-192_1eedc501.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "https://d2xsxph8kpxj0f.cloudfront.net/310519663328359702/EtuGgEXh3NhqYYxcDZkFms/app-icon-512-jG9oPLaexxmPSf5pHoKgKa.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
