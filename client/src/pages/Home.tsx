@@ -32,6 +32,7 @@ import {
   Check,
   RotateCcw,
   ExternalLink,
+  Scissors,
 } from "lucide-react";
 import {
   products,
@@ -43,6 +44,8 @@ import {
 } from "@/lib/gardenData";
 import { indoorPlants } from "@/lib/indoorPlants";
 import type { IndoorPlant } from "@/lib/indoorPlants";
+import { pruningGuides } from "@/lib/pruningData";
+import type { PruningGuide } from "@/lib/pruningData";
 import type {
   CalendarMonth,
   CalendarTask,
@@ -61,6 +64,7 @@ type Section =
   | "products"
   | "crops"
   | "seedling"
+  | "pruning"
   | "safety"
   | "plants";
 
@@ -70,6 +74,7 @@ const NAV_ITEMS: { id: Section; label: string; icon: React.ReactNode }[] = [
   { id: "products", label: "药剂肥料", icon: <Droplets className="w-4 h-4" /> },
   { id: "crops", label: "作物管理", icon: <Leaf className="w-4 h-4" /> },
   { id: "seedling", label: "育苗", icon: <Sprout className="w-4 h-4" /> },
+  { id: "pruning", label: "修剪疏果", icon: <Scissors className="w-4 h-4" /> },
   { id: "safety", label: "安全", icon: <Shield className="w-4 h-4" /> },
   { id: "plants", label: "室内绿植", icon: <TreePine className="w-4 h-4" /> },
 ];
@@ -974,6 +979,177 @@ function IndoorPlantCard({ plant }: { plant: IndoorPlant }) {
   );
 }
 
+// ─── Pruning Card Component ───
+function PruningCard({ guide }: { guide: PruningGuide }) {
+  const [expanded, setExpanded] = useState(false);
+  const [showThinning, setShowThinning] = useState(false);
+
+  const catColors: Record<string, string> = {
+    "果树": "bg-red-100 text-red-800 border-red-200",
+    "浆果": "bg-purple-100 text-purple-800 border-purple-200",
+    "蔬菜": "bg-green-100 text-green-800 border-green-200",
+    "花卉": "bg-pink-100 text-pink-800 border-pink-200",
+  };
+
+  return (
+    <div className="bg-card rounded-xl border border-border/60 shadow-sm overflow-hidden">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full p-4 flex items-center justify-between hover:bg-accent/30 transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">{guide.emoji}</span>
+          <div className="text-left">
+            <h3 className="font-semibold text-foreground">{guide.name}</h3>
+            <span className={`text-xs px-2 py-0.5 rounded border ${catColors[guide.category] || 'bg-gray-100 text-gray-800'}`}>
+              {guide.category}
+            </span>
+          </div>
+        </div>
+        <ChevronDown className={`w-5 h-5 text-muted-foreground transition-transform ${expanded ? 'rotate-180' : ''}`} />
+      </button>
+
+      <AnimatePresence>
+        {expanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 pb-4 space-y-4">
+              {/* Tab toggle for pruning vs thinning */}
+              {guide.thinning && (
+                <div className="flex gap-2 border-b border-border/40 pb-2">
+                  <button
+                    onClick={() => setShowThinning(false)}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                      !showThinning ? 'bg-amber-100 text-amber-800' : 'text-muted-foreground hover:bg-accent/50'
+                    }`}
+                  >
+                    ✂️ 修剪整枝
+                  </button>
+                  <button
+                    onClick={() => setShowThinning(true)}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                      showThinning ? 'bg-amber-100 text-amber-800' : 'text-muted-foreground hover:bg-accent/50'
+                    }`}
+                  >
+                    🍎 疏果
+                  </button>
+                </div>
+              )}
+
+              {!showThinning ? (
+                <PruningDetail section={guide.pruning} />
+              ) : guide.thinning ? (
+                <ThinningDetail section={guide.thinning} />
+              ) : null}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function PruningDetail({ section }: { section: PruningGuide['pruning'] }) {
+  return (
+    <div className="space-y-3">
+      <div className="bg-amber-50 rounded-lg p-3 border border-amber-200">
+        <h4 className="font-semibold text-amber-900 text-sm">{section.title}</h4>
+        <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+          <div><span className="font-medium text-amber-800">⛰️ 时间：</span> <span className="text-amber-700">{section.when}</span></div>
+          <div><span className="font-medium text-amber-800">🎯 目的：</span> <span className="text-amber-700">{section.why}</span></div>
+        </div>
+        {section.tools && (
+          <div className="mt-2 text-xs">
+            <span className="font-medium text-amber-800">🧰 工具：</span>{' '}
+            <span className="text-amber-700">{section.tools.join('、')}</span>
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        {section.steps.map((s) => (
+          <div key={s.step} className="flex gap-3 p-3 bg-accent/20 rounded-lg">
+            <div className="flex-shrink-0 w-7 h-7 rounded-full bg-amber-200 text-amber-900 flex items-center justify-center text-sm font-bold">
+              {s.step}
+            </div>
+            <div className="flex-1 min-w-0">
+              <h5 className="font-semibold text-sm text-foreground">{s.title}</h5>
+              <p className="text-xs text-muted-foreground mt-0.5 whitespace-pre-line">{s.detail}</p>
+              {s.tip && (
+                <p className="text-xs text-amber-700 mt-1 italic">💡 {s.tip}</p>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {section.mistakes.length > 0 && (
+        <div className="bg-red-50 rounded-lg p-3 border border-red-200">
+          <h5 className="font-semibold text-red-800 text-sm mb-2">⚠️ 新手常见错误</h5>
+          <ul className="space-y-1">
+            {section.mistakes.map((m, i) => (
+              <li key={i} className="text-xs text-red-700">{m}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ThinningDetail({ section }: { section: NonNullable<PruningGuide['thinning']> }) {
+  return (
+    <div className="space-y-3">
+      <div className="bg-green-50 rounded-lg p-3 border border-green-200">
+        <h4 className="font-semibold text-green-900 text-sm">{section.title}</h4>
+        <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+          <div><span className="font-medium text-green-800">⛰️ 时间：</span> <span className="text-green-700">{section.when}</span></div>
+          <div><span className="font-medium text-green-800">🎯 目的：</span> <span className="text-green-700">{section.why}</span></div>
+        </div>
+        {section.targetSpacing && (
+          <div className="mt-2 text-xs">
+            <span className="font-medium text-green-800">📏 标准：</span>{' '}
+            <span className="text-green-700">{section.targetSpacing}</span>
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        {section.steps.map((s) => (
+          <div key={s.step} className="flex gap-3 p-3 bg-accent/20 rounded-lg">
+            <div className="flex-shrink-0 w-7 h-7 rounded-full bg-green-200 text-green-900 flex items-center justify-center text-sm font-bold">
+              {s.step}
+            </div>
+            <div className="flex-1 min-w-0">
+              <h5 className="font-semibold text-sm text-foreground">{s.title}</h5>
+              <p className="text-xs text-muted-foreground mt-0.5 whitespace-pre-line">{s.detail}</p>
+              {s.tip && (
+                <p className="text-xs text-green-700 mt-1 italic">💡 {s.tip}</p>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {section.mistakes.length > 0 && (
+        <div className="bg-red-50 rounded-lg p-3 border border-red-200">
+          <h5 className="font-semibold text-red-800 text-sm mb-2">⚠️ 新手常见错误</h5>
+          <ul className="space-y-1">
+            {section.mistakes.map((m, i) => (
+              <li key={i} className="text-xs text-red-700">{m}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Home Page ───
 // ─── Global PWA prompt capture (before any component mounts) ───
 let _deferredInstallPrompt: any = null;
@@ -1143,6 +1319,7 @@ export default function Home() {
     products: null,
     crops: null,
     seedling: null,
+    pruning: null,
     safety: null,
     plants: null,
   });
@@ -1615,6 +1792,40 @@ export default function Home() {
             {seedlingGuides.map((g, i) => (
               <FadeIn key={g.crop} delay={i * 0.05}>
                 <SeedlingCard guide={g} />
+              </FadeIn>
+            ))}
+          </div>
+        </section>
+
+        <Divider icon={<Scissors className="w-5 h-5" />} />
+
+        {/* ─── Pruning & Thinning Section ─── */}
+        <section
+          id="pruning"
+          ref={(el) => {
+            sectionRefs.current.pruning = el;
+          }}
+          className="scroll-mt-20"
+        >
+          <FadeIn>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center">
+                <Scissors className="w-5 h-5 text-amber-700" />
+              </div>
+              <div>
+                <h2 className="font-display text-2xl font-bold text-foreground">
+                  修剪与疏果指南
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  新手也能照着做的分步操作指南
+                </p>
+              </div>
+            </div>
+          </FadeIn>
+          <div className="space-y-4">
+            {pruningGuides.map((guide, i) => (
+              <FadeIn key={guide.id} delay={i * 0.04}>
+                <PruningCard guide={guide} />
               </FadeIn>
             ))}
           </div>
