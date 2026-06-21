@@ -42,6 +42,8 @@ import {
   plantStatus,
   seedlingGuides,
 } from "@/lib/gardenData";
+import { monthlyStatusData, getCurrentMonthData } from "@/lib/monthlyStatus";
+import type { MonthData } from "@/lib/monthlyStatus";
 import { indoorPlants } from "@/lib/indoorPlants";
 import type { IndoorPlant } from "@/lib/indoorPlants";
 import { pruningGuides } from "@/lib/pruningData";
@@ -1324,8 +1326,12 @@ export default function Home() {
     plants: null,
   });
 
-  // Checklist state
-  const statusChecklist = useChecklist('garden-status-checklist');
+  // Monthly status state
+  const [selectedMonth, setSelectedMonth] = useState<number>(() => new Date().getMonth() + 1);
+  const currentMonthData = monthlyStatusData.find(d => d.month === selectedMonth) || getCurrentMonthData();
+
+  // Checklist state (per-month key so each month has its own checklist)
+  const statusChecklist = useChecklist(`garden-status-checklist-${selectedMonth}`);
   const calendarChecklist = useChecklist('garden-calendar-checklist');
 
   const scrollToSection = (id: Section) => {
@@ -1505,21 +1511,37 @@ export default function Home() {
                   🚨 当前植物状态
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  2026年4月初 — 每棵植物现在该做什么
+                  {currentMonthData.label} — {currentMonthData.subtitle}
                 </p>
               </div>
             </div>
           </FadeIn>
+          {/* Month selector */}
+          <div className="flex flex-wrap gap-2 mt-3 mb-3">
+            {monthlyStatusData.map((m) => (
+              <button
+                key={m.month}
+                onClick={() => setSelectedMonth(m.month)}
+                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                  selectedMonth === m.month
+                    ? 'bg-green-600 text-white shadow-md scale-105'
+                    : 'bg-white border border-gray-200 text-gray-600 hover:border-green-300 hover:text-green-700'
+                }`}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
           {/* Progress bar */}
-          <div className="flex items-center gap-3 mt-3 mb-2">
+          <div className="flex items-center gap-3 mt-2 mb-2">
             <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
               <div
                 className="h-full bg-green-500 rounded-full transition-all duration-500"
-                style={{ width: `${(statusChecklist.count / plantStatus.length) * 100}%` }}
+                style={{ width: `${(statusChecklist.count / currentMonthData.plants.length) * 100}%` }}
               />
             </div>
             <span className="text-xs text-muted-foreground whitespace-nowrap">
-              {statusChecklist.count}/{plantStatus.length} 已完成
+              {statusChecklist.count}/{currentMonthData.plants.length} 已完成
             </span>
             {statusChecklist.count > 0 && (
               <button
@@ -1531,7 +1553,7 @@ export default function Home() {
             )}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mt-2">
-            {plantStatus.map((plant, i) => (
+            {currentMonthData.plants.map((plant, i) => (
               <FadeIn key={plant.id} delay={i * 0.05}>
                 <PlantStatusCard
                   plant={plant}
