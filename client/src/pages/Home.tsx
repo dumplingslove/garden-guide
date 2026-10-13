@@ -13,6 +13,9 @@ import {
   Droplets,
   Shield,
   Calendar,
+  CalendarDays,
+  Share2,
+  RefreshCw,
   ChevronDown,
   AlertTriangle,
   Bug,
@@ -42,6 +45,7 @@ import {
   plantStatus,
   seedlingGuides,
 } from "@/lib/gardenData";
+import { toast } from "sonner";
 import { monthlyStatusData, getCurrentMonthData } from "@/lib/monthlyStatus";
 import type { MonthData } from "@/lib/monthlyStatus";
 import { indoorPlants } from "@/lib/indoorPlants";
@@ -62,6 +66,7 @@ import heroBanner from "@/assets/hero-banner.webp";
 const HERO_IMG = heroBanner;
 
 type Section =
+  | "year"
   | "status"
   | "calendar"
   | "products"
@@ -72,8 +77,9 @@ type Section =
   | "plants";
 
 const NAV_ITEMS: { id: Section; label: string; icon: React.ReactNode }[] = [
+  { id: "year", label: "全年日历", icon: <CalendarDays className="w-4 h-4" /> },
   { id: "status", label: "当前状态", icon: <Zap className="w-4 h-4" /> },
-  { id: "calendar", label: "月历", icon: <Calendar className="w-4 h-4" /> },
+  { id: "calendar", label: "月历详情", icon: <Calendar className="w-4 h-4" /> },
   { id: "products", label: "药剂肥料", icon: <Droplets className="w-4 h-4" /> },
   { id: "crops", label: "作物管理", icon: <Leaf className="w-4 h-4" /> },
   { id: "seedling", label: "育苗", icon: <Sprout className="w-4 h-4" /> },
@@ -528,10 +534,14 @@ function CropCard({ crop }: { crop: Crop }) {
 }
 
 // ─── Calendar Month Card (v3 with visual summary) ───
-function CalendarMonthCard({ month, checklist }: { month: CalendarMonth; checklist: ReturnType<typeof useChecklist> }) {
+function CalendarMonthCard({ month, checklist, openSignal }: { month: CalendarMonth; checklist: ReturnType<typeof useChecklist>; openSignal?: string | null }) {
   const [open, setOpen] = useState(
     month.monthNum === 4 && month.month.includes("上旬"),
   );
+  // The year-overview can ask a specific phase card to open
+  useEffect(() => {
+    if (openSignal && openSignal === month.month) setOpen(true);
+  }, [openSignal, month.month]);
   const phasePrefix = `cal-${month.month}-`;
   const phaseTasks = month.tasks;
   const phaseCheckedCount = phaseTasks.filter((_, i) => checklist.checked[`${phasePrefix}${i}`]).length;
@@ -1313,10 +1323,94 @@ function InstallBanner() {
   );
 }
 
+// ─── Phase ↔ month mapping (calendar data is organised in 5 phases) ───
+const PHASE_MONTHS: Record<string, number[]> = {
+  "4月上旬": [4],
+  "4月下旬-5月": [4, 5],
+  "6月-7月": [6, 7],
+  "8月-9月": [8, 9],
+  "10月-11月": [10, 11],
+};
+
+function phaseForMonth(monthNum: number) {
+  return calendar.find((p) => (PHASE_MONTHS[p.month] ?? []).includes(monthNum));
+}
+
+// ─── Floating quick actions: share link + force refresh ───
+function QuickActions() {
+  const [refreshing, setRefreshing] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleShare = async () => {
+    const url = window.location.href.split("#")[0];
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: document.title, url });
+        return;
+      } catch {
+        /* user cancelled the share sheet — fall through to copy */
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      toast.success("链接已复制，去粘贴分享吧");
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("复制失败，长按地址栏复制链接");
+    }
+  };
+
+  const handleForceRefresh = async () => {
+    setRefreshing(true);
+    try {
+      if ("serviceWorker" in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((r) => r.unregister()));
+      }
+      if ("caches" in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((k) => caches.delete(k)));
+      }
+    } catch {
+      /* best effort — reload regardless */
+    }
+    window.location.reload();
+  };
+
+  const btnClass =
+    "flex items-center gap-1.5 pl-3 pr-3.5 py-2.5 rounded-full bg-white/95 backdrop-blur border border-border/70 shadow-lg text-sm font-medium text-foreground hover:shadow-xl active:scale-95 transition-all";
+
+  return (
+    <div className="fixed bottom-24 right-4 sm:bottom-6 sm:right-6 z-50 flex flex-col items-end gap-2">
+      <button onClick={handleShare} className={btnClass} aria-label="分享链接">
+        {copied ? (
+          <Check className="w-4 h-4 text-green-600" />
+        ) : (
+          <Share2 className="w-4 h-4 text-primary" />
+        )}
+        {copied ? "已复制" : "分享"}
+      </button>
+      <button
+        onClick={handleForceRefresh}
+        disabled={refreshing}
+        className={btnClass}
+        aria-label="强制刷新"
+      >
+        <RefreshCw
+          className={`w-4 h-4 text-primary ${refreshing ? "animate-spin" : ""}`}
+        />
+        {refreshing ? "刷新中" : "强制刷新"}
+      </button>
+    </div>
+  );
+}
+
 export default function Home() {
-  const [activeSection, setActiveSection] = useState<Section>("status");
+  const [activeSection, setActiveSection] = useState<Section>("year");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const sectionRefs = useRef<Record<Section, HTMLElement | null>>({
+    year: null,
     status: null,
     calendar: null,
     products: null,
@@ -1331,6 +1425,9 @@ export default function Home() {
   const [selectedMonth, setSelectedMonth] = useState<number>(() => new Date().getMonth() + 1);
   const currentMonthData = monthlyStatusData.find(d => d.month === selectedMonth) || getCurrentMonthData();
 
+  // Which phase card the year-overview last asked to open
+  const [openPhase, setOpenPhase] = useState<string | null>(null);
+
   // Checklist state (per-month key so each month has its own checklist)
   const statusChecklist = useChecklist(`garden-status-checklist-${selectedMonth}`);
   const calendarChecklist = useChecklist('garden-calendar-checklist');
@@ -1342,6 +1439,26 @@ export default function Home() {
       behavior: "smooth",
       block: "start",
     });
+  };
+
+  // Year-overview month click: select the month and show its per-plant tasks
+  const viewMonth = (m: number) => {
+    setSelectedMonth(m);
+    scrollToSection("status");
+  };
+
+  // Jump to a phase in the detail section and open its card
+  const goToPhase = (phaseMonth: string) => {
+    setOpenPhase(phaseMonth);
+    scrollToSection("calendar");
+    const idx = calendar.findIndex((p) => p.month === phaseMonth);
+    if (idx >= 0) {
+      setTimeout(() => {
+        document
+          .getElementById(`phase-${idx}`)
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 450);
+    }
   };
 
   // Track active section on scroll
@@ -1378,10 +1495,23 @@ export default function Home() {
   const veggies = crops.filter((c) => c.category === "蔬菜");
   const flowers = crops.filter((c) => c.category === "花卉");
 
+  // Year-overview derived data
+  const nowMonth = new Date().getMonth() + 1;
+  const nowPhase = phaseForMonth(nowMonth);
+  const nowPhaseIdx = nowPhase
+    ? calendar.findIndex((p) => p.month === nowPhase.month)
+    : -1;
+  const nextPhase =
+    nowPhaseIdx >= 0 ? calendar[nowPhaseIdx + 1] : undefined;
+  const nowStatus = monthlyStatusData.find((d) => d.month === nowMonth);
+
   return (
     <div className="min-h-screen bg-background">
       {/* ─── PWA Install Banner ─── */}
       <InstallBanner />
+
+      {/* ─── Floating quick actions (share / force refresh) ─── */}
+      <QuickActions />
 
       {/* ─── Hero Banner ─── */}
       <header className="relative overflow-hidden">
@@ -1424,6 +1554,20 @@ export default function Home() {
               <br />
               含育苗定植、浇水管理、预防性打药、施肥追肥完整方案。支持任务打勾记录进度。
             </p>
+            <div className="mt-6 flex flex-wrap gap-2">
+              <button
+                onClick={() => scrollToSection("year")}
+                className="px-4 py-2.5 rounded-full bg-green-700 text-white text-sm font-medium shadow-md hover:bg-green-800 transition-colors"
+              >
+                📅 全年日历 · 什么时候做什么
+              </button>
+              <button
+                onClick={() => viewMonth(nowMonth)}
+                className="px-4 py-2.5 rounded-full bg-white/90 backdrop-blur border border-green-800/30 text-green-900 text-sm font-medium shadow-sm hover:bg-white transition-colors"
+              >
+                🚨 本月要做的事
+              </button>
+            </div>
           </motion.div>
         </div>
       </header>
@@ -1494,6 +1638,151 @@ export default function Home() {
 
       {/* ─── Main Content ─── */}
       <main className="container py-8 space-y-12">
+        {/* ─── Year Calendar Overview ─── */}
+        <section
+          id="year"
+          ref={(el) => {
+            sectionRefs.current.year = el;
+          }}
+          className="scroll-mt-20"
+        >
+          <FadeIn>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <CalendarDays className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h2 className="font-display text-2xl font-bold text-foreground">
+                  全年日历
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  一年什么时候该做什么，一眼看清 — 点任意月份，直接看那个月每棵植物要做的事
+                </p>
+              </div>
+            </div>
+          </FadeIn>
+
+          {/* Up next: what to do now, and what comes after */}
+          <FadeIn>
+            <div className="rounded-2xl border-2 border-green-700/30 bg-gradient-to-br from-green-50 via-amber-50/60 to-background p-5 mb-6 shadow-sm">
+              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 mb-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-green-700">
+                  📍 现在 · {nowMonth}月
+                </span>
+                {nowStatus && (
+                  <span className="font-display text-lg font-semibold text-foreground">
+                    {nowStatus.subtitle}
+                  </span>
+                )}
+              </div>
+              {nowPhase ? (
+                <>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    所属阶段：{nowPhase.month}「{nowPhase.title}」— {nowPhase.goal}
+                  </p>
+                  <ul className="grid sm:grid-cols-2 gap-x-6 gap-y-1.5 mb-4">
+                    {nowPhase.summary.keyActions.slice(0, 4).map((a, i) => (
+                      <li key={i} className="text-sm text-foreground flex gap-2">
+                        <span className="text-green-700">•</span>
+                        <span>{a}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground mb-4">
+                  当前月份没有集中的阶段安排，按下方「当前状态」里每棵植物的提示做即可。
+                </p>
+              )}
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => viewMonth(nowMonth)}
+                  className="px-4 py-2 rounded-lg bg-green-700 text-white text-sm font-medium shadow-sm hover:bg-green-800 transition-colors"
+                >
+                  看本月每棵植物要做的事
+                </button>
+                {nowPhase && (
+                  <button
+                    onClick={() => goToPhase(nowPhase.month)}
+                    className="px-4 py-2 rounded-lg bg-white border border-green-700/40 text-green-800 text-sm font-medium hover:bg-green-50 transition-colors"
+                  >
+                    本阶段详细计划
+                  </button>
+                )}
+                {nextPhase && (
+                  <span className="text-xs text-muted-foreground ml-1">
+                    接下来：{nextPhase.month}「{nextPhase.title}」
+                  </span>
+                )}
+              </div>
+            </div>
+          </FadeIn>
+
+          {/* 12-month grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => {
+              const data = monthlyStatusData.find((d) => d.month === m);
+              const phase = phaseForMonth(m);
+              const isNow = m === nowMonth;
+              const isSelected = m === selectedMonth;
+              return (
+                <button
+                  key={m}
+                  onClick={() => data && viewMonth(m)}
+                  disabled={!data}
+                  className={`relative text-left rounded-xl border-2 p-3.5 transition-all ${
+                    isSelected
+                      ? "bg-green-700 border-green-700 text-white shadow-md"
+                      : isNow
+                        ? "bg-white border-green-600 ring-2 ring-green-200 shadow-sm"
+                        : data
+                          ? "bg-white border-border/70 hover:border-green-400 hover:shadow-sm"
+                          : "bg-muted/40 border-border/40 opacity-60 cursor-default"
+                  }`}
+                >
+                  {isNow && (
+                    <span
+                      className={`absolute -top-2 right-2 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                        isSelected
+                          ? "bg-white text-green-800"
+                          : "bg-green-600 text-white"
+                      }`}
+                    >
+                      本月
+                    </span>
+                  )}
+                  <div className="font-display text-xl font-bold leading-none mb-1.5">
+                    {m}月
+                  </div>
+                  <p
+                    className={`text-xs leading-snug line-clamp-2 min-h-8 ${
+                      isSelected ? "text-green-50" : "text-muted-foreground"
+                    }`}
+                  >
+                    {data ? data.subtitle : "冬季休整，暂无安排"}
+                  </p>
+                  {phase && (
+                    <span
+                      className={`inline-block mt-2 text-[11px] px-1.5 py-0.5 rounded ${
+                        isSelected
+                          ? "bg-white/20 text-white"
+                          : "bg-amber-100 text-amber-800"
+                      }`}
+                    >
+                      {phase.month} · {phase.tasks.length} 项任务
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-xs text-muted-foreground mt-3">
+            本站日程覆盖 4 月到 12 月；1–3 月是冬季休整期。任务按 5 个阶段组织，点月份先看每棵植物的状态与待办，阶段的完整打药/施肥安排在「月历详情」里。
+          </p>
+        </section>
+
+        <Divider icon={<Zap className="w-5 h-5" />} />
+
         {/* ─── Plant Status Section ─── */}
         <section
           id="status"
@@ -1583,19 +1872,25 @@ export default function Home() {
               </div>
               <div>
                 <h2 className="font-display text-2xl font-bold text-foreground">
-                  月历时间表
+                  月历详情 · 阶段计划
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  按月份查看施肥、打药、浇水、育苗全部计划 — 点击展开查看详情
+                  全年 5 个阶段的施肥、打药、浇水、育苗完整安排 — 点击展开查看详情
                 </p>
               </div>
             </div>
           </FadeIn>
           <div className="space-y-4">
             {calendar.map((month, i) => (
-              <FadeIn key={month.month} delay={i * 0.05}>
-                <CalendarMonthCard month={month} checklist={calendarChecklist} />
-              </FadeIn>
+              <div key={month.month} id={`phase-${i}`} className="scroll-mt-24">
+                <FadeIn delay={i * 0.05}>
+                  <CalendarMonthCard
+                    month={month}
+                    checklist={calendarChecklist}
+                    openSignal={openPhase}
+                  />
+                </FadeIn>
+              </div>
             ))}
           </div>
         </section>
