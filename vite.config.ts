@@ -153,6 +153,9 @@ function vitePluginManusDebugCollector(): Plugin {
 const plugins = [react(), tailwindcss(), jsxLocPlugin(), vitePluginManusRuntime(), vitePluginManusDebugCollector()];
 
 export default defineConfig({
+  // GitHub Pages serves this site from the /garden-guide/ subpath;
+  // every asset, manifest and service-worker URL must be built under it.
+  base: "/garden-guide/",
   plugins,
   resolve: {
     alias: {

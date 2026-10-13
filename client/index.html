@@ -11,11 +11,13 @@
     <!-- PWA Meta Tags -->
     <meta name="description" content="全年施肥、打药、浇水、育苗月历指南 — 一目了然的家庭果园与菜园管理手册" />
     <meta name="theme-color" content="#5B7A3A" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="果园指南" />
-    <link rel="apple-touch-icon" href="https://d2xsxph8kpxj0f.cloudfront.net/310519663328359702/EtuGgEXh3NhqYYxcDZkFms/app-icon-512-jG9oPLaexxmPSf5pHoKgKa.png" />
-    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" type="image/png" href="/garden-guide/icons/icon-192.png" />
+    <link rel="apple-touch-icon" href="/garden-guide/icons/apple-touch-icon-180.png" />
+    <link rel="manifest" href="/garden-guide/manifest.json" />
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -30,7 +32,7 @@
       // Register Service Worker for PWA offline support
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
+          navigator.serviceWorker.register('/garden-guide/sw.js')
             .then((reg) => console.log('SW registered:', reg.scope))
             .catch((err) => console.log('SW registration failed:', err));
         });

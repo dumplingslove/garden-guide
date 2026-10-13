@@ -57,8 +57,9 @@ import type {
   SeedlingGuide,
 } from "@/lib/gardenData";
 
-const HERO_IMG =
-  "https://d2xsxph8kpxj0f.cloudfront.net/310519663328359702/EtuGgEXh3NhqYYxcDZkFms/hero-banner-TCVdQnKKiDmXq8BEDjegDN.webp";
+import heroBanner from "@/assets/hero-banner.webp";
+
+const HERO_IMG = heroBanner;
 
 type Section =
   | "status"

@@ -1,66 +1,64 @@
-const CACHE_NAME = 'garden-guide-v1';
+/* Service worker for the garden guide PWA (GitHub Pages, /garden-guide/ scope).
+ * Strategy: precache the app shell on install, then network-first with a
+ * cache fallback so the guide stays readable offline. All paths are taken
+ * from the registration scope so nothing assumes the domain root.
+ */
+const CACHE_NAME = 'garden-guide-v2';
+const SCOPE = self.registration.scope;
+const PRECACHE = [
+  SCOPE,
+  SCOPE + 'index.html',
+  SCOPE + 'manifest.json',
+  SCOPE + 'icons/icon-192.png',
+  SCOPE + 'icons/icon-512.png',
+  SCOPE + 'icons/apple-touch-icon-180.png',
+];
 
-// Install event - cache essential assets
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll([
-        '/',
-        '/index.html',
-      ]);
-    })
+    caches
+      .open(CACHE_NAME)
+      .then((cache) => cache.addAll(PRECACHE))
+      .then(() => self.skipWaiting())
   );
-  self.skipWaiting();
 });
 
-// Activate event - clean old caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames
-          .filter((name) => name !== CACHE_NAME)
-          .map((name) => caches.delete(name))
-      );
-    })
+    caches
+      .keys()
+      .then((names) =>
+        Promise.all(
+          names.filter((name) => name !== CACHE_NAME).map((name) => caches.delete(name))
+        )
+      )
+      .then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
-// Fetch event - network first, fallback to cache
 self.addEventListener('fetch', (event) => {
-  // Skip non-GET requests
   if (event.request.method !== 'GET') return;
 
-  // Skip cross-origin requests except CDN images
   const url = new URL(event.request.url);
-  const isSameOrigin = url.origin === self.location.origin;
-  const isCDN = url.hostname === 'd2xsxph8kpxj0f.cloudfront.net';
-
-  if (!isSameOrigin && !isCDN) return;
+  if (url.origin !== self.location.origin) return;
 
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        // Clone and cache successful responses
         if (response.ok) {
-          const responseClone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseClone);
-          });
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
         }
         return response;
       })
-      .catch(() => {
-        // Fallback to cache when offline
-        return caches.match(event.request).then((cachedResponse) => {
-          if (cachedResponse) return cachedResponse;
-          // For navigation requests, return cached index.html
+      .catch(() =>
+        caches.match(event.request).then((cached) => {
+          if (cached) return cached;
           if (event.request.mode === 'navigate') {
-            return caches.match('/index.html');
+            return caches.match(SCOPE + 'index.html');
           }
           return new Response('Offline', { status: 503 });
-        });
-      })
+        })
+      )
   );
 });
