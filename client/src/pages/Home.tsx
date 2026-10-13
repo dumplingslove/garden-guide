@@ -16,6 +16,8 @@ import {
   CalendarDays,
   Share2,
   RefreshCw,
+  Search,
+  ArrowUp,
   ChevronDown,
   AlertTriangle,
   Bug,
@@ -336,8 +338,19 @@ function PlantStatusCard({ plant, isChecked, onToggle }: { plant: PlantStatus; i
 }
 
 // ─── Product Card ───
-function ProductCard({ product }: { product: Product }) {
+function ProductCard({
+  product,
+  forceOpen,
+  highlighted,
+}: {
+  product: Product;
+  forceOpen?: boolean;
+  highlighted?: boolean;
+}) {
   const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (forceOpen) setOpen(true);
+  }, [forceOpen]);
   const categoryColors: Record<string, string> = {
     杀菌剂: "border-l-emerald-600",
     杀虫剂: "border-l-amber-600",
@@ -349,7 +362,8 @@ function ProductCard({ product }: { product: Product }) {
   return (
     <motion.div
       layout
-      className={`bg-card rounded-lg border border-border/60 shadow-sm hover:shadow-md transition-shadow overflow-hidden border-l-4 ${categoryColors[product.category] || "border-l-gray-400"}`}
+      id={`product-${product.id}`}
+      className={`bg-card rounded-lg border border-border/60 shadow-sm hover:shadow-md transition-shadow overflow-hidden border-l-4 ${categoryColors[product.category] || "border-l-gray-400"} ${highlighted ? "ring-2 ring-green-500 ring-offset-2" : ""}`}
     >
       <button
         onClick={() => setOpen(!open)}
@@ -446,8 +460,19 @@ function ProductCard({ product }: { product: Product }) {
 }
 
 // ─── Crop Card ───
-function CropCard({ crop }: { crop: Crop }) {
+function CropCard({
+  crop,
+  forceOpen,
+  highlighted,
+}: {
+  crop: Crop;
+  forceOpen?: boolean;
+  highlighted?: boolean;
+}) {
   const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (forceOpen) setOpen(true);
+  }, [forceOpen]);
   const matchedProds = products.filter((p) =>
     crop.matchedProducts.includes(p.id),
   );
@@ -455,7 +480,8 @@ function CropCard({ crop }: { crop: Crop }) {
   return (
     <motion.div
       layout
-      className="bg-card rounded-lg border border-border/60 shadow-sm hover:shadow-md transition-shadow overflow-hidden"
+      id={`crop-${crop.id}`}
+      className={`bg-card rounded-lg border border-border/60 shadow-sm hover:shadow-md transition-shadow overflow-hidden ${highlighted ? "ring-2 ring-green-500 ring-offset-2" : ""}`}
     >
       <button
         onClick={() => setOpen(!open)}
@@ -934,7 +960,13 @@ function useChecklist(storageKey: string) {
 }
 
 // ─── Indoor Plant Card ───
-function IndoorPlantCard({ plant }: { plant: IndoorPlant }) {
+function IndoorPlantCard({
+  plant,
+  highlighted,
+}: {
+  plant: IndoorPlant;
+  highlighted?: boolean;
+}) {
   const difficultyConfig = {
     easy: { label: "好养", color: "bg-green-100 text-green-800 border-green-200" },
     medium: { label: "中等", color: "bg-amber-100 text-amber-800 border-amber-200" },
@@ -943,7 +975,10 @@ function IndoorPlantCard({ plant }: { plant: IndoorPlant }) {
   const diff = difficultyConfig[plant.difficulty];
 
   return (
-    <div className="bg-card rounded-xl border border-border/60 shadow-sm hover:shadow-md transition-shadow overflow-hidden p-5">
+    <div
+      id={`indoor-${plant.name}`}
+      className={`bg-card rounded-xl border border-border/60 shadow-sm hover:shadow-md transition-shadow overflow-hidden p-5 ${highlighted ? "ring-2 ring-green-500 ring-offset-2" : ""}`}
+    >
       <div className="flex items-center gap-3 mb-4">
         <span className="text-3xl">{plant.emoji}</span>
         <div>
@@ -1336,6 +1371,93 @@ function phaseForMonth(monthNum: number) {
   return calendar.find((p) => (PHASE_MONTHS[p.month] ?? []).includes(monthNum));
 }
 
+// ─── Search box: find a crop / product / indoor plant and jump to its card ───
+export type SearchItem = {
+  kind: "crop" | "product" | "indoor";
+  key: string;
+  anchor: string;
+  label: string;
+  sub: string;
+  emoji: string;
+  haystack: string;
+};
+
+function SearchBox({
+  query,
+  setQuery,
+  results,
+  onPick,
+  className = "",
+}: {
+  query: string;
+  setQuery: (q: string) => void;
+  results: SearchItem[];
+  onPick: (item: SearchItem) => void;
+  className?: string;
+}) {
+  const [focused, setFocused] = useState(false);
+  const showResults = focused && query.trim().length > 0;
+  return (
+    <div className={`relative ${className}`}>
+      <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+      <input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setTimeout(() => setFocused(false), 150)}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") setQuery("");
+          if (e.key === "Enter" && results.length > 0) onPick(results[0]);
+        }}
+        placeholder="搜作物 / 药剂，如：苹果、铜皂"
+        className="w-full pl-9 pr-8 py-2 rounded-full bg-muted/70 border border-border/60 text-sm outline-none focus:bg-white focus:border-green-600 focus:ring-2 focus:ring-green-200 transition-all"
+      />
+      {query && (
+        <button
+          onClick={() => setQuery("")}
+          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+          aria-label="清除搜索"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      )}
+      {showResults && (
+        <div className="absolute left-0 right-0 top-full mt-1.5 bg-white rounded-xl shadow-2xl border border-border/70 overflow-hidden z-[70] max-h-80 overflow-y-auto">
+          {results.length === 0 ? (
+            <p className="px-4 py-3 text-sm text-muted-foreground">
+              没找到「{query}」，换个词试试
+            </p>
+          ) : (
+            results.map((item) => (
+              <button
+                key={`${item.kind}-${item.key}`}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  onPick(item);
+                }}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-green-50 transition-colors"
+              >
+                <span className="text-xl shrink-0">{item.emoji}</span>
+                <span className="flex-1 min-w-0">
+                  <span className="block text-sm font-medium text-foreground truncate">
+                    {item.label}
+                  </span>
+                  <span className="block text-xs text-muted-foreground">
+                    {item.sub}
+                  </span>
+                </span>
+                <span className="text-xs text-green-700 font-medium shrink-0">
+                  直达 →
+                </span>
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Floating quick actions: share link + force refresh ───
 function QuickActions() {
   const [refreshing, setRefreshing] = useState(false);
@@ -1383,6 +1505,13 @@ function QuickActions() {
 
   return (
     <div className="fixed bottom-24 right-4 sm:bottom-6 sm:right-6 z-50 flex flex-col items-end gap-2">
+      <button
+        onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+        className="w-10 h-10 rounded-full bg-white/95 backdrop-blur border border-border/70 shadow-lg flex items-center justify-center hover:shadow-xl active:scale-95 transition-all"
+        aria-label="回到顶部"
+      >
+        <ArrowUp className="w-4 h-4 text-primary" />
+      </button>
       <button onClick={handleShare} className={btnClass} aria-label="分享链接">
         {copied ? (
           <Check className="w-4 h-4 text-green-600" />
@@ -1454,12 +1583,94 @@ export default function Home() {
     const idx = calendar.findIndex((p) => p.month === phaseMonth);
     if (idx >= 0) {
       setTimeout(() => {
-        document
-          .getElementById(`phase-${idx}`)
-          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+        const el = document.getElementById(`phase-${idx}`);
+        if (el) {
+          const distance = Math.abs(el.getBoundingClientRect().top);
+          el.scrollIntoView({
+            behavior: distance > 2200 ? "auto" : "smooth",
+            block: "start",
+          });
+        }
       }, 450);
     }
   };
+
+  // ─── Search & quick-jump ───
+  const [jumpTarget, setJumpTarget] = useState<{
+    kind: SearchItem["kind"];
+    key: string;
+  } | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const searchIndex: SearchItem[] = [
+    ...crops.map((c) => ({
+      kind: "crop" as const,
+      key: c.id,
+      anchor: `crop-${c.id}`,
+      label: c.name,
+      sub: `作物 · ${c.category}`,
+      emoji: c.emoji,
+      haystack: `${c.name} ${c.category} ${c.diseases.join(" ")} ${c.pests.join(" ")}`,
+    })),
+    ...products.map((p) => ({
+      kind: "product" as const,
+      key: p.id,
+      anchor: `product-${p.id}`,
+      label: p.nameCn,
+      sub: `药剂肥料 · ${p.category}`,
+      emoji: p.icon,
+      haystack: `${p.nameCn} ${p.name} ${p.category} ${p.role} ${p.activeIngredientCn}`,
+    })),
+    ...indoorPlants.map((p) => ({
+      kind: "indoor" as const,
+      key: p.name,
+      anchor: `indoor-${p.name}`,
+      label: p.name,
+      sub: "室内绿植",
+      emoji: p.emoji,
+      haystack: `${p.name} 室内绿植`,
+    })),
+  ];
+  const searchResults = searchQuery.trim()
+    ? searchIndex
+        .filter((it) =>
+          it.haystack.toLowerCase().includes(searchQuery.trim().toLowerCase()),
+        )
+        .slice(0, 8)
+    : [];
+
+  // Long jumps scroll instantly (a smooth scroll across the whole page
+  // animates hundreds of cards at once and feels laggy); short hops stay smooth.
+  const smartScroll = (el: HTMLElement, block: ScrollLogicalPosition) => {
+    const distance = Math.abs(el.getBoundingClientRect().top);
+    el.scrollIntoView({ behavior: distance > 2200 ? "auto" : "smooth", block });
+  };
+
+  const jumpToCard = (item: SearchItem) => {
+    setJumpTarget({ kind: item.kind, key: item.key });
+    setSearchQuery("");
+    setMobileMenuOpen(false);
+    setTimeout(() => {
+      const el = document.getElementById(item.anchor);
+      if (el) smartScroll(el, "center");
+    }, 80);
+    setTimeout(() => setJumpTarget(null), 3000);
+  };
+
+  const scrollToAnchor = (anchor: string) => {
+    setMobileMenuOpen(false);
+    const el = document.getElementById(anchor);
+    if (el) smartScroll(el, "start");
+  };
+
+  const CATEGORY_LINKS: { label: string; anchor: string }[] = [
+    { label: "🍎 果树", anchor: "cat-fruit" },
+    { label: "🫐 浆果", anchor: "cat-berry" },
+    { label: "🥬 蔬菜", anchor: "cat-veggie" },
+    { label: "🌹 花卉", anchor: "cat-flower" },
+    { label: "🪴 室内绿植", anchor: "plants" },
+    { label: "💊 药剂肥料", anchor: "products" },
+  ];
 
   // Track active section on scroll
   useEffect(() => {
@@ -1575,31 +1786,42 @@ export default function Home() {
       {/* ─── Sticky Nav ─── */}
       <nav className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border/60 shadow-sm">
         <div className="container">
-          {/* Desktop nav */}
-          <div className="hidden md:flex items-center gap-1 py-2">
-            {NAV_ITEMS.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => scrollToSection(item.id)}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                  activeSection === item.id
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                }`}
-              >
-                {item.icon}
-                {item.label}
-              </button>
-            ))}
+          {/* Desktop: section tabs + search */}
+          <div className="hidden md:flex items-center gap-1 pt-2">
+            <div className="flex items-center gap-1 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {NAV_ITEMS.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => scrollToSection(item.id)}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
+                    activeSection === item.id
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  }`}
+                >
+                  {item.icon}
+                  {item.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex-1" />
+            <SearchBox
+              query={searchQuery}
+              setQuery={setSearchQuery}
+              results={searchResults}
+              onPick={jumpToCard}
+              className="w-64 shrink-0"
+            />
           </div>
-          {/* Mobile nav */}
-          <div className="md:hidden flex items-center justify-between py-2">
+          {/* Mobile: current section + menu toggle */}
+          <div className="md:hidden flex items-center justify-between pt-2">
             <span className="text-sm font-semibold text-foreground">
               {NAV_ITEMS.find((n) => n.id === activeSection)?.label}
             </span>
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="p-2 rounded-lg hover:bg-muted"
+              aria-label="打开菜单"
             >
               {mobileMenuOpen ? (
                 <X className="w-5 h-5" />
@@ -1607,6 +1829,15 @@ export default function Home() {
                 <Menu className="w-5 h-5" />
               )}
             </button>
+          </div>
+          {/* Mobile: search */}
+          <div className="md:hidden mt-1">
+            <SearchBox
+              query={searchQuery}
+              setQuery={setSearchQuery}
+              results={searchResults}
+              onPick={jumpToCard}
+            />
           </div>
           <AnimatePresence>
             {mobileMenuOpen && (
@@ -1633,6 +1864,38 @@ export default function Home() {
               </motion.div>
             )}
           </AnimatePresence>
+          {/* Quick bar: months + categories, always one tap away */}
+          <div className="flex items-center gap-1.5 py-2 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <span className="text-xs font-bold text-muted-foreground shrink-0">
+              月份
+            </span>
+            {monthlyStatusData.map((m) => (
+              <button
+                key={m.month}
+                onClick={() => viewMonth(m.month)}
+                className={`px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
+                  selectedMonth === m.month
+                    ? "bg-green-700 text-white shadow-sm"
+                    : "bg-muted/70 text-muted-foreground hover:bg-green-100 hover:text-green-800"
+                }`}
+              >
+                {m.label}
+              </button>
+            ))}
+            <span className="w-px h-5 bg-border mx-1.5 shrink-0" />
+            <span className="text-xs font-bold text-muted-foreground shrink-0">
+              品类
+            </span>
+            {CATEGORY_LINKS.map((cat) => (
+              <button
+                key={cat.anchor}
+                onClick={() => scrollToAnchor(cat.anchor)}
+                className="px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap bg-muted/70 text-muted-foreground hover:bg-green-100 hover:text-green-800 transition-all"
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
         </div>
       </nav>
 
@@ -1644,7 +1907,7 @@ export default function Home() {
           ref={(el) => {
             sectionRefs.current.year = el;
           }}
-          className="scroll-mt-20"
+          className="scroll-mt-40"
         >
           <FadeIn>
             <div className="flex items-center gap-3 mb-6">
@@ -1789,7 +2052,7 @@ export default function Home() {
           ref={(el) => {
             sectionRefs.current.status = el;
           }}
-          className="scroll-mt-20"
+          className="scroll-mt-40"
         >
           <FadeIn>
             <div className="flex items-center gap-3 mb-2">
@@ -1863,7 +2126,7 @@ export default function Home() {
           ref={(el) => {
             sectionRefs.current.calendar = el;
           }}
-          className="scroll-mt-20"
+          className="scroll-mt-40"
         >
           <FadeIn>
             <div className="flex items-center gap-3 mb-6">
@@ -1882,7 +2145,7 @@ export default function Home() {
           </FadeIn>
           <div className="space-y-4">
             {calendar.map((month, i) => (
-              <div key={month.month} id={`phase-${i}`} className="scroll-mt-24">
+              <div key={month.month} id={`phase-${i}`} className="scroll-mt-40">
                 <FadeIn delay={i * 0.05}>
                   <CalendarMonthCard
                     month={month}
@@ -1903,7 +2166,7 @@ export default function Home() {
           ref={(el) => {
             sectionRefs.current.products = el;
           }}
-          className="scroll-mt-20"
+          className="scroll-mt-40"
         >
           <FadeIn>
             <div className="flex items-center gap-3 mb-6">
@@ -1934,7 +2197,7 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-8">
             {fungicides.map((p, i) => (
               <FadeIn key={p.id} delay={i * 0.05}>
-                <ProductCard product={p} />
+                <ProductCard product={p} forceOpen={jumpTarget?.kind === "product" && jumpTarget.key === p.id} highlighted={jumpTarget?.kind === "product" && jumpTarget.key === p.id} />
               </FadeIn>
             ))}
           </div>
@@ -1954,7 +2217,7 @@ export default function Home() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-8">
                 {multiEffect.map((p, i) => (
                   <FadeIn key={p.id} delay={i * 0.05}>
-                    <ProductCard product={p} />
+                    <ProductCard product={p} forceOpen={jumpTarget?.kind === "product" && jumpTarget.key === p.id} highlighted={jumpTarget?.kind === "product" && jumpTarget.key === p.id} />
                   </FadeIn>
                 ))}
               </div>
@@ -1974,7 +2237,7 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-8">
             {insecticides.map((p, i) => (
               <FadeIn key={p.id} delay={i * 0.05}>
-                <ProductCard product={p} />
+                <ProductCard product={p} forceOpen={jumpTarget?.kind === "product" && jumpTarget.key === p.id} highlighted={jumpTarget?.kind === "product" && jumpTarget.key === p.id} />
               </FadeIn>
             ))}
           </div>
@@ -1992,7 +2255,7 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {fertilizers.map((p, i) => (
               <FadeIn key={p.id} delay={i * 0.05}>
-                <ProductCard product={p} />
+                <ProductCard product={p} forceOpen={jumpTarget?.kind === "product" && jumpTarget.key === p.id} highlighted={jumpTarget?.kind === "product" && jumpTarget.key === p.id} />
               </FadeIn>
             ))}
           </div>
@@ -2006,7 +2269,7 @@ export default function Home() {
           ref={(el) => {
             sectionRefs.current.crops = el;
           }}
-          className="scroll-mt-20"
+          className="scroll-mt-40"
         >
           <FadeIn>
             <div className="flex items-center gap-3 mb-6">
@@ -2030,10 +2293,10 @@ export default function Home() {
               果树
             </h3>
           </FadeIn>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
+          <div id="cat-fruit" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-6 scroll-mt-44">
             {fruitTrees.map((c, i) => (
               <FadeIn key={c.id} delay={i * 0.05}>
-                <CropCard crop={c} />
+                <CropCard crop={c} forceOpen={jumpTarget?.kind === "crop" && jumpTarget.key === c.id} highlighted={jumpTarget?.kind === "crop" && jumpTarget.key === c.id} />
               </FadeIn>
             ))}
           </div>
@@ -2044,10 +2307,10 @@ export default function Home() {
               浆果
             </h3>
           </FadeIn>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
+          <div id="cat-berry" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-6 scroll-mt-44">
             {berries.map((c, i) => (
               <FadeIn key={c.id} delay={i * 0.05}>
-                <CropCard crop={c} />
+                <CropCard crop={c} forceOpen={jumpTarget?.kind === "crop" && jumpTarget.key === c.id} highlighted={jumpTarget?.kind === "crop" && jumpTarget.key === c.id} />
               </FadeIn>
             ))}
           </div>
@@ -2058,10 +2321,10 @@ export default function Home() {
               蔬菜
             </h3>
           </FadeIn>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
+          <div id="cat-veggie" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-6 scroll-mt-44">
             {veggies.map((c, i) => (
               <FadeIn key={c.id} delay={i * 0.05}>
-                <CropCard crop={c} />
+                <CropCard crop={c} forceOpen={jumpTarget?.kind === "crop" && jumpTarget.key === c.id} highlighted={jumpTarget?.kind === "crop" && jumpTarget.key === c.id} />
               </FadeIn>
             ))}
           </div>
@@ -2072,10 +2335,10 @@ export default function Home() {
               花卉
             </h3>
           </FadeIn>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div id="cat-flower" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 scroll-mt-44">
             {flowers.map((c, i) => (
               <FadeIn key={c.id} delay={i * 0.05}>
-                <CropCard crop={c} />
+                <CropCard crop={c} forceOpen={jumpTarget?.kind === "crop" && jumpTarget.key === c.id} highlighted={jumpTarget?.kind === "crop" && jumpTarget.key === c.id} />
               </FadeIn>
             ))}
           </div>
@@ -2089,7 +2352,7 @@ export default function Home() {
           ref={(el) => {
             sectionRefs.current.seedling = el;
           }}
-          className="scroll-mt-20"
+          className="scroll-mt-40"
         >
           <FadeIn>
             <div className="flex items-center gap-3 mb-6">
@@ -2123,7 +2386,7 @@ export default function Home() {
           ref={(el) => {
             sectionRefs.current.pruning = el;
           }}
-          className="scroll-mt-20"
+          className="scroll-mt-40"
         >
           <FadeIn>
             <div className="flex items-center gap-3 mb-6">
@@ -2157,7 +2420,7 @@ export default function Home() {
           ref={(el) => {
             sectionRefs.current.safety = el;
           }}
-          className="scroll-mt-20"
+          className="scroll-mt-40"
         >
           <FadeIn>
             <div className="flex items-center gap-3 mb-6">
@@ -2191,7 +2454,7 @@ export default function Home() {
           ref={(el) => {
             sectionRefs.current.plants = el;
           }}
-          className="scroll-mt-20"
+          className="scroll-mt-40"
         >
           <FadeIn>
             <div className="flex items-center gap-3 mb-6">
@@ -2211,7 +2474,7 @@ export default function Home() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {indoorPlants.map((plant, i) => (
               <FadeIn key={plant.name} delay={i * 0.05}>
-                <IndoorPlantCard plant={plant} />
+                <IndoorPlantCard plant={plant} highlighted={jumpTarget?.kind === "indoor" && jumpTarget.key === plant.name} />
               </FadeIn>
             ))}
           </div>
